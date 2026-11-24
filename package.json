@@ -1,0 +1,52 @@
+{
+  "name": "audiobus-input-composer",
+  "version": "0.1.0",
+  "description": "A theory-guided symbolic music composer and Plutchik web component for AudioBus",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./component": {
+      "types": "./dist/component/index.d.ts",
+      "import": "./dist/component/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs/implementation.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": [
+    "./dist/component/index.js",
+    "./src/component/index.ts"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build:lib": "tsc -p tsconfig.json",
+    "build:site": "vite build && node scripts/site-assets.mjs",
+    "build": "pnpm build:lib && pnpm build:site",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build:lib && node --test tests/*.test.mjs",
+    "test:browser": "playwright test",
+    "preview": "vite preview --host 127.0.0.1",
+    "prepack": "pnpm build:lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/designerzen/audiobus-input-composer.git"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}

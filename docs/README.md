@@ -1,6 +1,6 @@
 # Research for an autonomous AudioBus composer Input
 
-Research date: 24 November 2026. This is a design and research library, not an implemented Input. Research documents live in `docs/`; individual algorithm studies are in `docs/techniques/`.
+Research date: 24 November 2026. These documents describe the wider design and research programme. Version 0.1 now implements a focused subset: see the [implementation and API guide](implementation.md) and [project README](../README.md) for the working library, web component and deployment. Research documents live in `docs/`; individual algorithm studies are in `docs/techniques/`.
 
 The proposed instrument composes **musical events**: pitches, rhythms, rests, harmony, phrases, articulation, part entrances and expressive controls. AudioBus or connected instruments render them. Its central question is: **what musical decision should happen next, why, and how does it belong to what has already happened?**
 
