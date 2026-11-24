@@ -1,0 +1,115 @@
+{
+  "reviewDate": "2026-11-24",
+  "pathBase": "parent directory of this repository",
+  "repositoryCommit": "954bc287313c77f2560d7a4b01027e2af5ee31a6",
+  "versionBoundary": "Hashes identify working-tree files actually consulted; commit alone need not describe uncommitted files. Reading scope is explicit per file.",
+  "sources": [
+    {
+      "path": "harmoneasy/AGENTS.md",
+      "bytes": 326,
+      "sha256": "07ce5852b4ec2ae45eaa5731e8a54138b075ddc2b13755f420ce76f2795defa3",
+      "scope": "Read local repository instructions; no edits made."
+    },
+    {
+      "path": "harmoneasy/CODING_STANDARDS.md",
+      "bytes": 949,
+      "sha256": "06de8a75858d1d50d1b158c883f80ba8abfd8259fed7f7af52f86608f01525be",
+      "scope": "Read local coding conventions; no edits made."
+    },
+    {
+      "path": "harmoneasy/docs/research/README.md",
+      "bytes": 806,
+      "sha256": "98589e64b4fccd81f4562e55fa0760d06d4675347c642612b58431a2c92497d1",
+      "scope": "Read research index."
+    },
+    {
+      "path": "harmoneasy/docs/research/ensemble-transformer.md",
+      "bytes": 19902,
+      "sha256": "18ada3d21c66a44990e050235540219b70b248f0368d2e38a38f1252aba7f798",
+      "scope": "Read local annotated synthesis and selected design details; not a fresh read of all sixteen original papers."
+    },
+    {
+      "path": "harmoneasy/docs/research/ensemble-next-experiments.md",
+      "bytes": 11457,
+      "sha256": "6c7c514ed3723cc1b1b2457b5cec38459a9924195c66e58191597f11e1870637",
+      "scope": "Read experimental proposals."
+    },
+    {
+      "path": "harmoneasy/research/scales-and-musical-torus.md",
+      "bytes": 9199,
+      "sha256": "9902c6b4e989a15a7e102ac8121ba6a1e5447954c634d91572af6975dee40d37",
+      "scope": "Read pitch-set and torus research note."
+    },
+    {
+      "path": "harmoneasy/packages/audiobus/tuning/pitch-class-set.ts",
+      "bytes": 2729,
+      "sha256": "c0488eaa0fc8cf54afdda47d8d424aabba4432290467a93ca7ae5d96bddbeaff",
+      "scope": "Read complete module."
+    },
+    {
+      "path": "harmoneasy/packages/audiobus/io/scale-explorer-controls.ts",
+      "bytes": 2879,
+      "sha256": "2d06e80a3376de7216c18c324c99c0659417a74f46784931ab1825bae4aefc0e",
+      "scope": "Read first 90 lines; set operations and controls."
+    },
+    {
+      "path": "harmoneasy/packages/audiobus/io/inputs/input-scale-explorer.ts",
+      "bytes": 8747,
+      "sha256": "00ce268569065467bee31ee0a06388c839b38b4e9faf218cc480f21d77b75048",
+      "scope": "Read first 110 lines; timing and step emission path."
+    },
+    {
+      "path": "harmoneasy/packages/audiobus/io/transformers/transformer-scale-explorer.ts",
+      "bytes": 2249,
+      "sha256": "5fb7e07e643499b5fb19c20be8c42dd83e8b62778e4a93140bf49575c08063e5",
+      "scope": "Read complete module."
+    },
+    {
+      "path": "harmoneasy/packages/audiobus/io/ensemble-performance.ts",
+      "bytes": 43288,
+      "sha256": "2409900cf5b3ec7a3676c20d61c6bf2241bdfbc12d2e7a89e1d2c18250b22fa1",
+      "scope": "Selected symbol searches and lines around 1025-1075; role, recovery and note-lifecycle observations only."
+    }
+  ],
+  "locatedOnly": [
+    "harmoneasy/packages/audiobus/ui/musical-torus.ts",
+    "harmoneasy/packages/audiobus/io/ensemble-session.ts"
+  ],
+  "independentlyChecked": [
+    {
+      "url": "https://ianring.com/musictheory/scales/",
+      "scope": "Selected essay material: representation and analysis."
+    },
+    {
+      "url": "https://sigplan.github.io/OpenTOC/farm21.html",
+      "scope": "MidifilePerformer proceedings abstract."
+    },
+    {
+      "url": "https://antescofo-doc.ircam.fr/Reference/time_synchro/",
+      "scope": "Relevant synchronization documentation."
+    },
+    {
+      "url": "https://ableton.github.io/link/",
+      "scope": "Official overview and timeline/phase concepts."
+    },
+    {
+      "url": "https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2022.916551/full",
+      "scope": "GEM abstract and relevant study framing."
+    },
+    {
+      "url": "https://nime.org/proceedings/2016/nime2016_paper0005.pdf",
+      "scope": "Action-Sound Latency abstract/selected material."
+    }
+  ],
+  "accessLimits": [
+    {
+      "url": "https://studiodevil.com/scales/",
+      "outcome": "Unavailable through web tool; interpretation remains inherited."
+    },
+    {
+      "url": "https://andrewduncan.net/cmt/",
+      "outcome": "Timed out; interpretation remains inherited."
+    }
+  ],
+  "implementationBoundary": "Documentation research only; no integration, application tests or listener experiments performed."
+}

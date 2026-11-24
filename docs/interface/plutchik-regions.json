@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Composer interface specification; not an implemented runtime adapter",
+  "source": "photosynth.lol/source/webcomponent/star-controller/star-controller.svg",
+  "sourceSha256": "7ac56fe8ae76bbe1b3e43339ea190c3977e87bd6f7ab6f81429b349e4923238e",
+  "familyOrder": [
+    "joy",
+    "trust",
+    "fear",
+    "surprise",
+    "sadness",
+    "disgust",
+    "anger",
+    "anticipation"
+  ],
+  "selectionPolicy": "Latch one emotion; same-label paths are aliases; energy remains independent",
+  "regions": [
+    {
+      "sourceRegion": "ecstasy:0",
+      "sourcePetal": "ecstasy",
+      "sourcePathIndex": 0,
+      "family": "joy",
+      "emotion": "serenity",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "joy:serenity"
+    },
+    {
+      "sourceRegion": "ecstasy:1",
+      "sourcePetal": "ecstasy",
+      "sourcePathIndex": 1,
+      "family": "joy",
+      "emotion": "joy",
+      "intensityLevel": 2,
+      "strength": 0.6666666666666666,
+      "selectionId": "joy:joy"
+    },
+    {
+      "sourceRegion": "ecstasy:2",
+      "sourcePetal": "ecstasy",
+      "sourcePathIndex": 2,
+      "family": "joy",
+      "emotion": "ecstasy",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "joy:ecstasy"
+    },
+    {
+      "sourceRegion": "ecstasy:3",
+      "sourcePetal": "ecstasy",
+      "sourcePathIndex": 3,
+      "family": "joy",
+      "emotion": "ecstasy",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "joy:ecstasy"
+    },
+    {
+      "sourceRegion": "admiration:0",
+      "sourcePetal": "admiration",
+      "sourcePathIndex": 0,
+      "family": "trust",
+      "emotion": "admiration",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "trust:admiration"
+    },
+    {
+      "sourceRegion": "admiration:1",
+      "sourcePetal": "admiration",
+      "sourcePathIndex": 1,
+      "family": "trust",
+      "emotion": "acceptance",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "trust:acceptance"
+    },
+    {
+      "sourceRegion": "admiration:2",
+      "sourcePetal": "admiration",
+      "sourcePathIndex": 2,
+      "family": "trust",
+      "emotion": "trust",
+      "intensityLevel": 2,
+      "strength": 0.6666666666666666,
+      "selectionId": "trust:trust"
+    },
+    {
+      "sourceRegion": "admiration:3",
+      "sourcePetal": "admiration",
+      "sourcePathIndex": 3,
+      "family": "trust",
+      "emotion": "admiration",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "trust:admiration"
+    },
+    {
+      "sourceRegion": "terror:0",
+      "sourcePetal": "terror",
+      "sourcePathIndex": 0,
+      "family": "fear",
+      "emotion": "apprehension",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "fear:apprehension"
+    },
+    {
+      "sourceRegion": "terror:1",
+      "sourcePetal": "terror",
+      "sourcePathIndex": 1,
+      "family": "fear",
+      "emotion": "terror",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "fear:terror"
+    },
+    {
+      "sourceRegion": "terror:2",
+      "sourcePetal": "terror",
+      "sourcePathIndex": 2,
+      "family": "fear",
+      "emotion": "fear",
+      "intensityLevel": 2,
+      "strength": 0.6666666666666666,
+      "selectionId": "fear:fear"
+    },
+    {
+      "sourceRegion": "terror:3",
+      "sourcePetal": "terror",
+      "sourcePathIndex": 3,
+      "family": "fear",
+      "emotion": "terror",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "fear:terror"
+    },
+    {
+      "sourceRegion": "amazement:0",
+      "sourcePetal": "amazement",
+      "sourcePathIndex": 0,
+      "family": "surprise",
+      "emotion": "distraction",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "surprise:distraction"
+    },
+    {
+      "sourceRegion": "amazement:1",
+      "sourcePetal": "amazement",
+      "sourcePathIndex": 1,
+      "family": "surprise",
+      "emotion": "amazement",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "surprise:amazement"
+    },
+    {
+      "sourceRegion": "amazement:2",
+      "sourcePetal": "amazement",
+      "sourcePathIndex": 2,
+      "family": "surprise",
+      "emotion": "surprise",
+      "intensityLevel": 2,
+      "strength": 0.6666666666666666,
+      "selectionId": "surprise:surprise"
+    },
+    {
+      "sourceRegion": "amazement:3",
+      "sourcePetal": "amazement",
+      "sourcePathIndex": 3,
+      "family": "surprise",
+      "emotion": "amazement",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "surprise:amazement"
+    },
+    {
+      "sourceRegion": "grief:0",
+      "sourcePetal": "grief",
+      "sourcePathIndex": 0,
+      "family": "sadness",
+      "emotion": "grief",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "sadness:grief"
+    },
+    {
+      "sourceRegion": "grief:1",
+      "sourcePetal": "grief",
+      "sourcePathIndex": 1,
+      "family": "sadness",
+      "emotion": "pensiveness",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "sadness:pensiveness"
+    },
+    {
+      "sourceRegion": "grief:2",
+      "sourcePetal": "grief",
+      "sourcePathIndex": 2,
+      "family": "sadness",
+      "emotion": "sadness",
+      "intensityLevel": 2,
+      "strength": 0.6666666666666666,
+      "selectionId": "sadness:sadness"
+    },
+    {
+      "sourceRegion": "grief:3",
+      "sourcePetal": "grief",
+      "sourcePathIndex": 3,
+      "family": "sadness",
+      "emotion": "grief",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "sadness:grief"
+    },
+    {
+      "sourceRegion": "loathing:0",
+      "sourcePetal": "loathing",
+      "sourcePathIndex": 0,
+      "family": "disgust",
+      "emotion": "loathing",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "disgust:loathing"
+    },
+    {
+      "sourceRegion": "loathing:1",
+      "sourcePetal": "loathing",
+      "sourcePathIndex": 1,
+      "family": "disgust",
+      "emotion": "boredom",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "disgust:boredom"
+    },
+    {
+      "sourceRegion": "loathing:2",
+      "sourcePetal": "loathing",
+      "sourcePathIndex": 2,
+      "family": "disgust",
+      "emotion": "disgust",
+      "intensityLevel": 2,
+      "strength": 0.6666666666666666,
+      "selectionId": "disgust:disgust"
+    },
+    {
+      "sourceRegion": "loathing:3",
+      "sourcePetal": "loathing",
+      "sourcePathIndex": 3,
+      "family": "disgust",
+      "emotion": "loathing",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "disgust:loathing"
+    },
+    {
+      "sourceRegion": "rage:0",
+      "sourcePetal": "rage",
+      "sourcePathIndex": 0,
+      "family": "anger",
+      "emotion": "annoyance",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "anger:annoyance"
+    },
+    {
+      "sourceRegion": "rage:1",
+      "sourcePetal": "rage",
+      "sourcePathIndex": 1,
+      "family": "anger",
+      "emotion": "annoyance",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "anger:annoyance"
+    },
+    {
+      "sourceRegion": "rage:2",
+      "sourcePetal": "rage",
+      "sourcePathIndex": 2,
+      "family": "anger",
+      "emotion": "anger",
+      "intensityLevel": 2,
+      "strength": 0.6666666666666666,
+      "selectionId": "anger:anger"
+    },
+    {
+      "sourceRegion": "rage:3",
+      "sourcePetal": "rage",
+      "sourcePathIndex": 3,
+      "family": "anger",
+      "emotion": "rage",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "anger:rage"
+    },
+    {
+      "sourceRegion": "vigilance:0",
+      "sourcePetal": "vigilance",
+      "sourcePathIndex": 0,
+      "family": "anticipation",
+      "emotion": "interest",
+      "intensityLevel": 1,
+      "strength": 0.3333333333333333,
+      "selectionId": "anticipation:interest"
+    },
+    {
+      "sourceRegion": "vigilance:1",
+      "sourcePetal": "vigilance",
+      "sourcePathIndex": 1,
+      "family": "anticipation",
+      "emotion": "anticipation",
+      "intensityLevel": 2,
+      "strength": 0.6666666666666666,
+      "selectionId": "anticipation:anticipation"
+    },
+    {
+      "sourceRegion": "vigilance:2",
+      "sourcePetal": "vigilance",
+      "sourcePathIndex": 2,
+      "family": "anticipation",
+      "emotion": "vigilance",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "anticipation:vigilance"
+    },
+    {
+      "sourceRegion": "vigilance:3",
+      "sourcePetal": "vigilance",
+      "sourcePathIndex": 3,
+      "family": "anticipation",
+      "emotion": "vigilance",
+      "intensityLevel": 3,
+      "strength": 1.0,
+      "selectionId": "anticipation:vigilance"
+    }
+  ]
+}

@@ -1,0 +1,183 @@
+{
+  "reviewDate": "2026-11-24",
+  "method": "GitHub metadata and commit-pinned source inspection; no packages installed or executed",
+  "repositories": [
+    {
+      "repository": "tidalcycles/Tidal",
+      "branch": "main",
+      "sha": "fefb1c364af42be265e9f02477d6d2d8fb2ec2b9",
+      "license": "GPL-3.0",
+      "inspected": [
+        {
+          "path": "tidal-core/src/Sound/Tidal/Pattern.hs",
+          "url": "https://github.com/tidalcycles/Tidal/blob/fefb1c364af42be265e9f02477d6d2d8fb2ec2b9/tidal-core/src/Sound/Tidal/Pattern.hs",
+          "bytes": 46105,
+          "observations": [
+            "59: data Pattern a = Pattern {query :: State -> [Event a], steps :: Maybe (Rational), pureValue :: Maybe a}",
+            "571: queryArc :: Pattern a -> Arc -> [Event a]",
+            "572: queryArc p a = query p $ State a Map.empty",
+            "980: whole :: Maybe a,",
+            "981: part :: a,"
+          ]
+        }
+      ],
+      "candidatePaths": []
+    },
+    {
+      "repository": "supercollider/supercollider",
+      "branch": "develop",
+      "sha": "9254ec807aaeaf078e18abf61f6a4dad64753fb2",
+      "license": "GPL-3.0",
+      "inspected": [
+        {
+          "path": "SCClassLibrary/Common/Streams/Patterns.sc",
+          "url": "https://github.com/supercollider/supercollider/blob/9254ec807aaeaf078e18abf61f6a4dad64753fb2/SCClassLibrary/Common/Streams/Patterns.sc",
+          "bytes": 17348,
+          "observations": [
+            "6: ^Pseq.new([this, aPattern])",
+            "136: Pseq([",
+            "342: Pbind : Pattern {",
+            "345: if (pairs.size.odd, { Error(\"Pbind should have even number of args.\\n\").throw; });"
+          ]
+        }
+      ],
+      "candidatePaths": [
+        "examples/demonstrations/HarmonicsVoice.html",
+        "examples/demonstrations/HarmonicsVoice.scd"
+      ]
+    },
+    {
+      "repository": "sonic-pi-net/sonic-pi",
+      "branch": "dev",
+      "sha": "26cdb2cf05ada193b11bb6f4353ae4c7cdffd79c",
+      "license": "NOASSERTION",
+      "inspected": [
+        {
+          "path": "app/server/ruby/lib/sonicpi/lang/core.rb",
+          "url": "https://github.com/sonic-pi-net/sonic-pi/blob/26cdb2cf05ada193b11bb6f4353ae4c7cdffd79c/app/server/ruby/lib/sonicpi/lang/core.rb",
+          "bytes": 209626,
+          "observations": [
+            "87: return \"/{cue,set,live_loop}/#{__cue_path_segment(s)}\".freeze",
+            "426: tick: \"A key for the tick with which to count pulses. Override this if you have more than one `with_swing` block in your `live_loop` or thread to stop them inte",
+            "432: live_loop :foo do",
+            "440: live_loop :foo do",
+            "448: live_loop :foo do",
+            "457: # more than once in any given live_loop or thread.",
+            "458: live_loop :foo do",
+            "469: live_loop :foo do",
+            "476: live_loop :bar do",
+            "484: live_loop :foo do"
+          ]
+        }
+      ],
+      "candidatePaths": [
+        "app/external/aubio-0.4.9/python/demos/demo_simple_robot_voice.py",
+        "app/mac-selftest-voiceover.sh",
+        "etc/wavetables/AKWF/AKWF_hvoice",
+        "etc/wavetables/AKWF/AKWF_hvoice/AKWF_hvoice_0001.wav",
+        "etc/wavetables/AKWF/AKWF_hvoice/AKWF_hvoice_0001.wavetable",
+        "etc/wavetables/AKWF/AKWF_hvoice/AKWF_hvoice_0002.wav",
+        "etc/wavetables/AKWF/AKWF_hvoice/AKWF_hvoice_0002.wavetable",
+        "etc/wavetables/AKWF/AKWF_hvoice/AKWF_hvoice_0003.wav",
+        "etc/wavetables/AKWF/AKWF_hvoice/AKWF_hvoice_0003.wavetable",
+        "etc/wavetables/AKWF/AKWF_hvoice/AKWF_hvoice_0004.wav"
+      ]
+    },
+    {
+      "repository": "Qirky/FoxDot",
+      "branch": "master",
+      "sha": "affae587ab7b2a5f93102302254de16dd72d4c50",
+      "license": "NOASSERTION",
+      "inspected": [
+        {
+          "path": "FoxDot/lib/Patterns/Main.py",
+          "url": "https://github.com/Qirky/FoxDot/blob/affae587ab7b2a5f93102302254de16dd72d4c50/FoxDot/lib/Patterns/Main.py",
+          "bytes": 53224,
+          "observations": [
+            "1043: class Pattern(metaPattern):",
+            "1495: class PatternContainer(metaPattern):"
+          ]
+        }
+      ],
+      "candidatePaths": [
+        "FoxDot/lib/Extensions/VRender/VoiceSpecificator.py",
+        "FoxDot/snd/_/dollar/5_bb_voice.wav",
+        "FoxDot/snd/c/upper/voice_1.wav",
+        "FoxDot/snd/c/upper/voice_2.wav",
+        "FoxDot/snd/c/upper/voice_3.wav",
+        "FoxDot/snd/c/upper/voice_4.wav"
+      ]
+    },
+    {
+      "repository": "tonaljs/tonal",
+      "branch": "main",
+      "sha": "5183bb488141d0ee806d03186bdbf59395af1a8d",
+      "license": null,
+      "inspected": [
+        {
+          "path": "packages/voice-leading/index.ts",
+          "url": "https://github.com/tonaljs/tonal/blob/5183bb488141d0ee806d03186bdbf59395af1a8d/packages/voice-leading/index.ts",
+          "bytes": 1428,
+          "observations": [
+            "20: export const topNoteDiff: VoiceLeadingFunction = (voicings, lastVoicing) => {"
+          ]
+        }
+      ],
+      "candidatePaths": [
+        "packages/voice-leading",
+        "packages/voice-leading/CHANGELOG.md",
+        "packages/voice-leading/LICENSE",
+        "packages/voice-leading/README.md",
+        "packages/voice-leading/index.ts",
+        "packages/voice-leading/package.json",
+        "packages/voice-leading/test.ts",
+        "site/lib/voice.ts"
+      ]
+    },
+    {
+      "repository": "scribbletune/scribbletune",
+      "branch": "master",
+      "sha": "fbc9a4bd975b869c534331690b11227fc16f7c50",
+      "license": "MIT",
+      "inspected": [
+        {
+          "path": "src/clip.ts",
+          "url": "https://github.com/scribbletune/scribbletune/blob/fbc9a4bd975b869c534331690b11227fc16f7c50/src/clip.ts",
+          "bytes": 6460,
+          "observations": [
+            "33: export const clip = (params: ClipParams): NoteObject[] => {"
+          ]
+        }
+      ],
+      "candidatePaths": [
+        "src/browser-clip.ts",
+        "src/clip.ts"
+      ]
+    },
+    {
+      "repository": "magenta/magenta-js",
+      "branch": "master",
+      "sha": "96bad8837da43beb53f2e5aaea9f29f3db4bdddb",
+      "license": "Apache-2.0",
+      "inspected": [
+        {
+          "path": "music/src/music_rnn/model.ts",
+          "url": "https://github.com/magenta/magenta-js/blob/96bad8837da43beb53f2e5aaea9f29f3db4bdddb/music/src/music_rnn/model.ts",
+          "bytes": 12987,
+          "observations": [
+            "212: async continueSequence(",
+            "215: const result = await this.continueSequenceImpl(",
+            "231: async continueSequenceAndReturnProbabilities(",
+            "235: return this.continueSequenceImpl(",
+            "239: private async continueSequenceImpl("
+          ]
+        }
+      ],
+      "candidatePaths": []
+    },
+    {
+      "repository": "generative-music/pieces",
+      "error": "HTTP Error 404: Not Found"
+    }
+  ]
+}

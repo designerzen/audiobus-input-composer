@@ -1,0 +1,274 @@
+{
+  "reviewDate": "2026-11-24",
+  "scope": "Primary papers, author/practitioner accounts, official manuals and repositories. Individual PDF and code-reading scope is recorded in separate ledgers. No runtime compatibility benchmark.",
+  "knownAccessLimits": [
+    "The Hundred Rabbits Orca site denied the web fetch; its official GitHub repository was used.",
+    "Guessed Extempore temporal-recursion URLs were unavailable; the official time overview was found and read.",
+    "A guessed Konduktiva quantized_maps URL failed; the linked quantizedmaps-tutorial page was found and read.",
+    "A repeated manuscript fetch without the initial request headers returned 403; the initial header-bearing fetch and later header-bearing read succeeded."
+  ],
+  "sources": [
+    {
+      "label": "TOPLAP draft manifesto",
+      "url": "https://toplap.org/wiki/ManifestoDraft.html",
+      "usedIn": [
+        "19-algorave-history-practice-and-lineages.md"
+      ]
+    },
+    {
+      "label": "FAQ",
+      "url": "https://toplap.org/wiki/FrequentlyAskedQuestions.html",
+      "usedIn": [
+        "19-algorave-history-practice-and-lineages.md"
+      ]
+    },
+    {
+      "label": "Algorave paper by Collins and McLean",
+      "url": "https://nime.org/proc/nime2014_ncollins/index.html",
+      "usedIn": [
+        "19-algorave-history-practice-and-lineages.md"
+      ]
+    },
+    {
+      "label": "Strudel paper",
+      "url": "https://zenodo.org/records/7842142",
+      "usedIn": [
+        "19-algorave-history-practice-and-lineages.md",
+        "21-system-comparison-and-adoption.md",
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "official introduction",
+      "url": "https://konduktiva.org/doku.php?id=start",
+      "usedIn": [
+        "19-algorave-history-practice-and-lineages.md"
+      ]
+    },
+    {
+      "label": "repository",
+      "url": "https://github.com/Bubobubobubobubo/topos",
+      "usedIn": [
+        "19-algorave-history-practice-and-lineages.md",
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "SuperContinent practitioners' account",
+      "url": "https://econtact.ca/21_1/knotts-etal_supercontinent.html",
+      "usedIn": [
+        "19-algorave-history-practice-and-lineages.md",
+        "23-collaboration-machine-agency-and-legibility.md"
+      ]
+    },
+    {
+      "label": "2023 analysis of 133 anniversary performances",
+      "url": "https://research.chalmers.se/publication/535526/file/535526_Fulltext.pdf",
+      "usedIn": [
+        "19-algorave-history-practice-and-lineages.md",
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "Strudel alignment documentation",
+      "url": "https://strudel.cc/technical-manual/alignment/",
+      "usedIn": [
+        "20-pattern-semantics-and-live-editing.md"
+      ]
+    },
+    {
+      "label": "0,1/2)`. Scheduler queries `[0,1/4)` and `[1/4,1/2)` each see an overlap. Both fragments refer to one musical event. Emit one attack at 0 and its release at 1/2, not two quarter-cycle attacks. Preserve original span, overlap span and stable identity separately.\n\nSeeking directly to 1/4 is a different operation. Decide whether to resume the held note, begin only at future attacks or replay from an earlier boundary. Do not accidentally use ordinary query-fragment handling as a seek policy.\n\n## Joining patterns is a compositional decision\n\nSuppose melody has three equal events in a cycle and a harmony-control pattern has two equal values. The harmonic boundary at 1/2 falls inside the middle melody event. At least three policies are reasonable:\n\n1. **Sample at attack:** the middle note keeps the harmonic interpretation sampled at 1/3.\n2. **Continuous reinterpretation:** the held event's control changes at 1/2 without a new attack, where delivery supports it.\n3. **Rearticulate at intersection:** split the middle note and attack a new event at 1/2.\n\nThese produce different phrasing. A generic array `zip` chooses none of them clearly. A cycle-time intersection can create fragments; an explicitly rearticulating join creates new events. The [Tidal pattern-structure reference",
+      "url": "https://tidalcycles.org/docs/reference/pattern_structure/",
+      "usedIn": [
+        "20-pattern-semantics-and-live-editing.md"
+      ]
+    },
+    {
+      "label": "time overview",
+      "url": "https://extemporelang.github.io/docs/overview/time/",
+      "usedIn": [
+        "20-pattern-semantics-and-live-editing.md"
+      ]
+    },
+    {
+      "label": "ChucK's time specification",
+      "url": "https://chuck.stanford.edu/doc/language/time.html",
+      "usedIn": [
+        "20-pattern-semantics-and-live-editing.md"
+      ]
+    },
+    {
+      "label": "SuperCollider `Pdef` reference",
+      "url": "https://doc.sccode.org/Classes/Pdef.html",
+      "usedIn": [
+        "20-pattern-semantics-and-live-editing.md",
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "Estuary source",
+      "url": "https://github.com/dktr0/estuary/blob/717ca84b53d296519154e2aa5e60405aba071262/client/src/Estuary/Types/ParamPatternable.hs",
+      "usedIn": [
+        "20-pattern-semantics-and-live-editing.md"
+      ]
+    },
+    {
+      "label": "Topos evaluator source",
+      "url": "https://github.com/Bubobubobubobubo/topos/blob/aa2eb0651d68df2df081397f3a41a58cc15c0d4a/src/Evaluator.ts",
+      "usedIn": [
+        "20-pattern-semantics-and-live-editing.md"
+      ]
+    },
+    {
+      "label": "pattern guide",
+      "url": "https://doc.sccode.org/Tutorials/A-Practical-Guide/PG_01_Introduction.html",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "official tutorial",
+      "url": "https://sonic-pi.net/tutorial.html",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "FoxDot repository",
+      "url": "https://github.com/Qirky/FoxDot",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "QuantizedMaps tutorial",
+      "url": "https://konduktiva.org/doku.php?id=quantizedmaps-tutorial",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "player creation",
+      "url": "https://konduktiva.org/doku.php?id=creating-players",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "action functions",
+      "url": "https://konduktiva.org/doku.php?id=action-functions",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md",
+        "22-autonomous-conductor-and-dramaturgy.md"
+      ]
+    },
+    {
+      "label": "Sardine's player documentation",
+      "url": "https://sardine.raphaelforment.fr/basics/players.html",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "Ziffers integration",
+      "url": "https://sardine.raphaelforment.fr/pattern_languages/ziffers.html",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "Alonen\u2013Forment paper",
+      "url": "https://zenodo.org/records/7841945",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md",
+        "24-symbolic-notation-and-emotion-programs.md",
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "Orca repository",
+      "url": "https://github.com/hundredrabbits/Orca",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "Estuary paper",
+      "url": "https://iclc.toplap.org/2017/cameraReady/ICLC_2017_paper_78.pdf",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md",
+        "23-collaboration-machine-agency-and-legibility.md",
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "Flok",
+      "url": "https://github.com/munshkr/flok",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md",
+        "23-collaboration-machine-agency-and-legibility.md"
+      ]
+    },
+    {
+      "label": "Mercury's official overview",
+      "url": "https://tmhglnd.github.io/mercury/docs/",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md"
+      ]
+    },
+    {
+      "label": "Sema paper record",
+      "url": "https://doi.org/10.5281/zenodo.3939228",
+      "usedIn": [
+        "21-system-comparison-and-adoption.md",
+        "24-symbolic-notation-and-emotion-programs.md",
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "Tidal transitions",
+      "url": "https://tidalcycles.org/docs/reference/transitions/",
+      "usedIn": [
+        "22-autonomous-conductor-and-dramaturgy.md"
+      ]
+    },
+    {
+      "label": "Wilson, Fazekas and Wiggins",
+      "url": "https://doi.org/10.1017/S1355771823000420",
+      "usedIn": [
+        "23-collaboration-machine-agency-and-legibility.md",
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "2020 paper",
+      "url": "https://benswift.me/assets/documents/preprints/attanayake_et_al_2020_disruption_and_creativity_in_live_coding.pdf",
+      "usedIn": [
+        "23-collaboration-machine-agency-and-legibility.md",
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "2026 Strudel-based system",
+      "url": "https://zenodo.org/records/20784519",
+      "usedIn": [
+        "23-collaboration-machine-agency-and-legibility.md",
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "author manuscript",
+      "url": "https://ualresearchonline.arts.ac.uk/id/eprint/21566/1/on-the-integration-of-machine-agents-into-live-coding.cleaned.pdf",
+      "usedIn": [
+        "25-additional-live-coding-papers.md"
+      ]
+    },
+    {
+      "label": "DOI",
+      "url": "https://doi.org/10.5281/zenodo.7843813",
+      "usedIn": [
+        "25-additional-live-coding-papers.md"
+      ]
+    }
+  ]
+}

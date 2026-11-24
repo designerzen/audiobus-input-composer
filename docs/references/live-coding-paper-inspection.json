@@ -1,0 +1,69 @@
+{
+  "reviewDate": "2026-11-24",
+  "papers": [
+    {
+      "id": "P18",
+      "url": "https://zenodo.org/records/7842142/files/mclean_roos_strudel.pdf",
+      "sha256": "1821004c630f475ba7ad435ff15cee0d436a5d617a7765b01d8965d217ffc8e0",
+      "bytes": 299002,
+      "pages": 10,
+      "inspection": "Text extracted; first-page overview and selected method/evaluation passages inspected. Not a full visual or reproduction review."
+    },
+    {
+      "id": "P19",
+      "url": "https://zenodo.org/records/7841945/files/alonen_forment_ziffers.pdf",
+      "sha256": "2cae423910870ab6c3cc4ad2fac4c41cbfed2446d1d548b6d30c5b3ec33045e6",
+      "bytes": 538231,
+      "pages": 13,
+      "inspection": "Text extracted; first-page overview and selected method/evaluation passages inspected. Not a full visual or reproduction review."
+    },
+    {
+      "id": "P20",
+      "url": "https://iclc.toplap.org/2017/cameraReady/ICLC_2017_paper_78.pdf",
+      "sha256": "a351185c22ce396efa2ed5922e76abf701d4900b3c43d0c5c640df8ff3d3ac61",
+      "bytes": 144878,
+      "pages": 11,
+      "inspection": "Text extracted; first-page overview and selected method/evaluation passages inspected. Not a full visual or reproduction review."
+    },
+    {
+      "id": "P21",
+      "url": "https://benswift.me/assets/documents/preprints/attanayake_et_al_2020_disruption_and_creativity_in_live_coding.pdf",
+      "sha256": "41e98f00fee95ecbf0558c62fdb8d2ed85028512baf840606d55a37374e12feb",
+      "bytes": 166031,
+      "pages": 5,
+      "inspection": "Text extracted; first-page overview and selected method/evaluation passages inspected. Not a full visual or reproduction review."
+    },
+    {
+      "id": "P22",
+      "url": "https://ualresearchonline.arts.ac.uk/id/eprint/21566/1/on-the-integration-of-machine-agents-into-live-coding.cleaned.pdf",
+      "sha256": "74a682901b6be1d8b8100dd005e1f6c82d2f995c465759891052ae6545595936",
+      "bytes": 658799,
+      "pages": 10,
+      "inspection": "Text extracted; first-page overview and selected method/evaluation passages inspected. Not a full visual or reproduction review."
+    },
+    {
+      "id": "P23",
+      "url": "https://research.chalmers.se/publication/535526/file/535526_Fulltext.pdf",
+      "sha256": "6cf325664d140999cf01f8a37dcad2dde2b3fd1186ada5600e45a9df58d947a2",
+      "bytes": 1703553,
+      "pages": 12,
+      "inspection": "Text extracted; first-page overview and selected method/evaluation passages inspected. Not a full visual or reproduction review."
+    },
+    {
+      "id": "P24",
+      "url": "https://zenodo.org/records/20784519/files/nime2026_171.pdf",
+      "sha256": "36e81f913f0e8543abbd50e4a19f12cc69a67f305563678c133ccf549b161f70",
+      "bytes": 1545558,
+      "pages": 5,
+      "inspection": "Text extracted; first-page overview and selected method/evaluation passages inspected. Not a full visual or reproduction review."
+    },
+    {
+      "id": "P25",
+      "url": "https://zenodo.org/records/3939228/files/paper119-iclc2020-sema.pdf",
+      "sha256": "1d233224452b9002cd388fe733ea0a4f6be3d0997a4aca2b761c5556fe2c434c",
+      "bytes": 3782137,
+      "pages": 17,
+      "inspection": "Text extracted; first-page overview and selected method/evaluation passages inspected. Not a full visual or reproduction review."
+    }
+  ]
+}

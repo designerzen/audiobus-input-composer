@@ -1,0 +1,258 @@
+{
+  "reviewDate": "2026-11-24",
+  "evidence": "Primary papers, author projects, official manuals, and explicitly identified local secondary research. References support mechanisms or broader method families; musical mappings are proposals. No claim of complete-paper review or package execution.",
+  "sources": {
+    "dynamics": {
+      "title": "JuliaDynamics: defined maps and flows",
+      "url": "https://juliadynamics.github.io/PredefinedDynamicalSystems.jl/stable/"
+    },
+    "ring": {
+      "title": "Ian Ring: pitch-set representation and analysis",
+      "url": "https://ianring.com/musictheory/scales/"
+    },
+    "harmon": {
+      "title": "HarmonEasy: local pitch-set research",
+      "url": "../../../harmoneasy/research/scales-and-musical-torus.md"
+    },
+    "ensemble": {
+      "title": "HarmonEasy: ensemble research",
+      "url": "../../../harmoneasy/docs/research/ensemble-transformer.md"
+    },
+    "antescofo": {
+      "title": "IRCAM: synchronization strategies",
+      "url": "https://antescofo-doc.ircam.fr/Reference/time_synchro/"
+    },
+    "link": {
+      "title": "Ableton: tempo, phase and arrangement synchronization",
+      "url": "https://ableton.github.io/link/"
+    },
+    "choice": {
+      "title": "NumPy: categorical sampling",
+      "url": "https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.choice.html"
+    },
+    "stats": {
+      "title": "SciPy: probability distributions",
+      "url": "https://docs.scipy.org/doc/scipy/reference/stats.html"
+    },
+    "poisson": {
+      "title": "SciPy: Poisson distribution",
+      "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.poisson.html"
+    },
+    "expon": {
+      "title": "SciPy: exponential distribution",
+      "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.expon.html"
+    },
+    "filter": {
+      "title": "SciPy: filtering sequences",
+      "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.lfilter.html"
+    },
+    "sobol": {
+      "title": "SciPy: Sobol sequences",
+      "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.qmc.Sobol.html"
+    },
+    "idyom": {
+      "title": "IDyOM: variable-order and multiple-viewpoint prediction",
+      "url": "https://www.marcus-pearce.com/idyom/"
+    },
+    "hmm": {
+      "title": "hmmlearn: hidden Markov model tutorial",
+      "url": "https://hmmlearn.readthedocs.io/en/stable/tutorial.html"
+    },
+    "oracle": {
+      "title": "IRCAM: OMax factor-oracle improvisation",
+      "url": "https://forum.ircam.fr/article/omax5-tutorials/"
+    },
+    "deap": {
+      "title": "DEAP: evolutionary operators",
+      "url": "https://deap.readthedocs.io/en/master/api/tools.html"
+    },
+    "gp": {
+      "title": "DEAP: genetic programming",
+      "url": "https://deap.readthedocs.io/en/stable/tutorials/advanced/gp.html"
+    },
+    "de": {
+      "title": "pymoo: differential evolution",
+      "url": "https://pymoo.org/algorithms/soo/de.html"
+    },
+    "cma": {
+      "title": "CMA-ES: author implementation",
+      "url": "https://github.com/CMA-ES/pycma"
+    },
+    "nsga": {
+      "title": "pymoo: NSGA-II",
+      "url": "https://pymoo.org/algorithms/moo/nsga2.html"
+    },
+    "novelty": {
+      "title": "Lehman: novelty-search dissertation",
+      "url": "https://stars.library.ucf.edu/etd/2214/"
+    },
+    "map": {
+      "title": "Mouret and Clune: MAP-Elites",
+      "url": "https://arxiv.org/abs/1504.04909"
+    },
+    "life": {
+      "title": "Golly: Life and outer-totalistic rules",
+      "url": "https://golly.sourceforge.io/Help/Algorithms/QuickLife.html"
+    },
+    "gen": {
+      "title": "Golly: Generations and refractory states",
+      "url": "https://golly.sourceforge.io/Help/Algorithms/Generations.html"
+    },
+    "rules": {
+      "title": "Golly: rule implementations",
+      "url": "https://golly.sourceforge.io/Help/Algorithms/RuleLoader.html"
+    },
+    "eca": {
+      "title": "Wolfram: elementary cellular automata",
+      "url": "https://www.wolframscience.com/nks/p23--how-do-simple-programs-behave/"
+    },
+    "lenia": {
+      "title": "Chan: Lenia project",
+      "url": "https://github.com/Chakazul/Lenia"
+    },
+    "rd": {
+      "title": "Karl Sims: Gray–Scott reaction diffusion",
+      "url": "https://www.karlsims.com/rd.html"
+    },
+    "lsys": {
+      "title": "Prusinkiewicz: score generation with L-systems",
+      "url": "https://algorithmicbotany.org/papers/score.icmc86.html"
+    },
+    "botany": {
+      "title": "Prusinkiewicz and Lindenmayer: author publication archive",
+      "url": "https://algorithmicbotany.org/papers/"
+    },
+    "bt": {
+      "title": "BehaviorTree.CPP: behaviour-tree framework",
+      "url": "https://www.behaviortree.dev/docs/intro/"
+    },
+    "kuramoto": {
+      "title": "Brockmann and Strogatz: coupled phase oscillators",
+      "url": "https://www.complexity-explorables.org/explorables/ride-my-kuramotocycle/"
+    },
+    "boids": {
+      "title": "Craig Reynolds: Boids",
+      "url": "https://www.red3d.com/cwr/boids/"
+    },
+    "mesa": {
+      "title": "Mesa: agent-based simulation framework",
+      "url": "https://mesa.readthedocs.io/stable/"
+    },
+    "wolves": {
+      "title": "Wilensky: Wolf Sheep Predation model",
+      "url": "https://ccl.northwestern.edu/netlogo/models/WolfSheepPredation"
+    },
+    "pso": {
+      "title": "pymoo: particle swarm optimization",
+      "url": "https://pymoo.org/algorithms/soo/pso.html"
+    },
+    "cp": {
+      "title": "OR-Tools: integer constraint solving",
+      "url": "https://developers.google.com/optimization/cp/cp_solver"
+    },
+    "paths": {
+      "title": "NetworkX: shortest-path algorithms",
+      "url": "https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html"
+    },
+    "euler": {
+      "title": "NetworkX: Eulerian traversal",
+      "url": "https://networkx.org/documentation/stable/reference/algorithms/euler.html"
+    },
+    "wfc": {
+      "title": "Gumin: Wave Function Collapse",
+      "url": "https://github.com/mxgmn/WaveFunctionCollapse"
+    },
+    "anneal": {
+      "title": "SciPy: dual annealing",
+      "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html"
+    },
+    "morpheus": {
+      "title": "Herremans and Chew: MorpheuS",
+      "url": "https://arxiv.org/abs/1812.04832"
+    },
+    "euclid": {
+      "title": "Toussaint: Euclidean rhythms",
+      "url": "https://ehess.modelisationsavoirs.fr/atiam/biblio/Toussaint-BRIDGES2005.pdf"
+    },
+    "tidal": {
+      "title": "TidalCycles: pattern structure",
+      "url": "https://tidalcycles.org/docs/reference/pattern_structure/"
+    },
+    "tonal": {
+      "title": "Tonal: music-theory implementation",
+      "url": "https://github.com/tonaljs/tonal"
+    },
+    "ziffers": {
+      "title": "Alonen and Forment: Ziffers",
+      "url": "https://zenodo.org/records/7841945"
+    },
+    "vae": {
+      "title": "Roberts and colleagues: MusicVAE",
+      "url": "https://arxiv.org/abs/1803.05428"
+    },
+    "transformer": {
+      "title": "Huang and colleagues: Music Transformer",
+      "url": "https://arxiv.org/abs/1809.04281"
+    },
+    "gan": {
+      "title": "Dong and colleagues: MuseGAN",
+      "url": "https://arxiv.org/abs/1709.06298"
+    },
+    "diffusion": {
+      "title": "Wang, Min and Xia: hierarchical symbolic diffusion",
+      "url": "https://arxiv.org/abs/2405.09901"
+    },
+    "muse": {
+      "title": "Wu and Yang: MuseMorphose",
+      "url": "https://arxiv.org/abs/2105.04090"
+    },
+    "rnn": {
+      "title": "Magenta.js: MusicRNN implementation",
+      "url": "https://github.com/magenta/magenta-js/blob/master/music/src/music_rnn/model.ts"
+    },
+    "rl": {
+      "title": "Spinning Up: reinforcement-learning formulation",
+      "url": "https://spinningup.openai.com/en/latest/spinningup/rl_intro.html"
+    },
+    "hsmm": {
+      "title": "Johnson and Willsky: explicit-duration hidden semi-Markov models",
+      "url": "https://arxiv.org/abs/1203.1365"
+    },
+    "factorial": {
+      "title": "Ghahramani and Jordan: Factorial Hidden Markov Models",
+      "url": "https://papers.neurips.cc/paper/1144-factorial-hidden-markov-models.pdf"
+    },
+    "grammar": {
+      "title": "Bird, Klein and Loper: grammars and parsing",
+      "url": "https://www.nltk.org/book/ch08.html"
+    },
+    "ge": {
+      "title": "Grammatical Evolution: author publications",
+      "url": "https://www.grammatical-evolution.org/pubs.html"
+    },
+    "petri": {
+      "title": "van der Aalst and Berti: Petri-net event models",
+      "url": "https://arxiv.org/abs/2010.02047"
+    },
+    "ant": {
+      "title": "Dorigo: Ant Colony Optimization",
+      "url": "https://iridia.ulb.ac.be/dorigo/ACO/about.html"
+    },
+    "sandpile": {
+      "title": "NetLogo: Sandpile model",
+      "url": "https://ccl.northwestern.edu/netlogo/models/Sandpile"
+    },
+    "dla": {
+      "title": "NetLogo: diffusion-limited aggregation",
+      "url": "https://ccl.northwestern.edu/netlogo/models/DLA"
+    },
+    "reservoir": {
+      "title": "Jaeger: echo-state networks, corrected report",
+      "url": "https://www.ai.rug.nl/minds/uploads/EchoStatesTechRep.pdf"
+    },
+    "part": {
+      "title": "Arvo Pärt Centre: formal tintinnabuli algorithms",
+      "url": "https://www.arvopart.ee/en/arvo-part/article/formal-algorithms-of-tintinnabuli-in-arvo-parts-music/"
+    }
+  }
+}

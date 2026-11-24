@@ -1,0 +1,1882 @@
+{
+  "reviewDate": "2026-11-24",
+  "techniqueCount": 115,
+  "items": [
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "weighted-choice",
+      "title": "Weighted categorical choice",
+      "mechanism": "Choose one discrete outcome using nonnegative weights normalized to a probability distribution.",
+      "mapping": "Use candidate motifs, chord functions or articulations as outcomes. Filter illegal candidates before normalization, so randomness selects a musically meaningful alternative.",
+      "example": "For tonic, predominant and dominant weights [5,2,3], probabilities are [.5,.2,.3]. This does not require the next ten choices to contain exactly five tonics.",
+      "controls": "Energy can favour active variants; emotion changes profile-specific weights; section time can increase a cadence weight.",
+      "failure": "Independent choices forget context. All-zero weights need an explicit fallback; peaked weights can trap the piece.",
+      "experiment": "Compare empirical frequencies over many seeds, then listen for direction with and without phrase constraints.",
+      "sources": [
+        "choice"
+      ],
+      "id": "T001",
+      "file": "weighted-choice.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "bernoulli-gates",
+      "title": "Bernoulli gates and stochastic masks",
+      "mechanism": "Each eligible slot has a binary success probability.",
+      "mapping": "Apply gates to optional attacks while preserving motif anchors. Keep the mask keyed by bar, part and slot so overlapping queries agree.",
+      "example": "An eight-slot pattern with p=.25 has two expected retained attacks, but a particular bar can contain none. Reserve the first anchor separately.",
+      "controls": "Energy controls eligible-attack probability; emotion may favour particular metric positions without changing total expectation.",
+      "failure": "Expectation is not a hard density limit. Independent gates can erase the theme or create unbalanced clusters.",
+      "experiment": "Check anchor survival and aggregate caps; compare independent gates with exact-count selection at matched mean density.",
+      "sources": [
+        "stats"
+      ],
+      "id": "T002",
+      "file": "bernoulli-gates.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "poisson-events",
+      "title": "Poisson counts and event clouds",
+      "mechanism": "A Poisson variable models counts with a specified mean; an ideal homogeneous Poisson process has exponentially distributed waiting times.",
+      "mapping": "Choose the number of ornamental events in a musical window, then map positions and pitches through the current profile.",
+      "example": "At mean three attacks per bar, zero attacks has probability exp(-3), about .0498. Capping the count at six changes the resulting distribution.",
+      "controls": "Energy steers the mean; section envelopes steer its trajectory; emotion selects register and articulation independently.",
+      "failure": "Unrestricted clouds can cluster or overwhelm other parts. Quantizing or adding minimum spacing changes the ideal process.",
+      "experiment": "Measure uncapped and capped count distributions separately and inspect silence, clustering and foreground clarity.",
+      "sources": [
+        "poisson",
+        "expon"
+      ],
+      "id": "T003",
+      "file": "poisson-events.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "renewal-rhythm",
+      "title": "Renewal processes for rhythm",
+      "mechanism": "Generate successive inter-event intervals from an interval distribution.",
+      "mapping": "Use a rhythmic alphabet such as half, one and two beats instead of assuming every event occupies the same grid slot.",
+      "example": "Intervals [1,.5,.5,2] sum to a four-beat bar. A newly drawn interval that exceeds the phrase needs a declared trim, defer or rejection policy.",
+      "controls": "Energy changes interval weights; emotion can alter long-short contrast; time supplies phrase boundaries.",
+      "failure": "Independent intervals can drift across bars. A final forced interval can create a conspicuous repair.",
+      "experiment": "Compare unconstrained renewal, conditional bar filling and authored rhythmic cells under identical budgets.",
+      "sources": [
+        "expon",
+        "stats"
+      ],
+      "id": "T004",
+      "file": "renewal-rhythm.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "bounded-random-walk",
+      "title": "Bounded random walks",
+      "mechanism": "Update a state by sampled increments, with explicit boundary handling.",
+      "mapping": "Walk through scale degrees or voicing indices. Reflection keeps motion in a tessitura while preserving a sense of local movement.",
+      "example": "In degrees 0..6, a proposed step from 6 to 7 reflects to 5 under a reflecting policy; clamping instead stays at 6.",
+      "controls": "Energy may expand the step distribution; emotion can bias direction; a phrase target can constrain the final steps.",
+      "failure": "Clamping accumulates visits at boundaries; wrapping creates leaps; unconstrained walks meander without endings.",
+      "experiment": "Compare boundary occupation, leap distributions and cadence arrival for reflecting, clamped and wrapped versions.",
+      "sources": [
+        "stats"
+      ],
+      "id": "T005",
+      "file": "bounded-random-walk.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "mean-reverting-process",
+      "title": "Mean-reverting stochastic control",
+      "mechanism": "Combine random perturbation with attraction toward a reference value.",
+      "mapping": "Drive register centre, gate ratio or ornament preference toward a profile target while allowing temporary excursions.",
+      "example": "Use x_next=x+theta*(mu-x)*dt+sigma*sqrt(dt)*z, then map x to a bounded control. This is a numerical proposal, not an exact continuous-time simulator.",
+      "controls": "The emotion selects mu; energy selects a bounded fluctuation range; time determines dt and target transitions.",
+      "failure": "Large integration steps can destabilize the process. Rounding continuously to a pitch can create repetitive threshold chatter.",
+      "experiment": "Check time-step sensitivity, recovery after perturbation and whether continuous variation survives musical quantization.",
+      "sources": [
+        "stats",
+        "filter"
+      ],
+      "id": "T006",
+      "file": "mean-reverting-process.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "coloured-noise-control",
+      "title": "Coloured-noise control trajectories",
+      "mechanism": "Correlate random values across time through filtering or a prescribed spectral construction.",
+      "mapping": "Use slow correlated fluctuations for density or register instead of unrelated per-note random values. The output remains a symbolic control curve.",
+      "example": "Smooth [0,1,0,1] before mapping to an ornament chance; hold the resulting value for a bar rather than jittering each attack.",
+      "controls": "Energy sets range, emotion sets baseline and correlation time; keep the sampling interval fixed or accounted for.",
+      "failure": "A generic low-pass filter is not automatically exact pink noise. Spectral slope does not establish musical coherence.",
+      "experiment": "Compare independent, smoothed and explicitly specified pink-noise controls using the same mean and variance.",
+      "sources": [
+        "filter"
+      ],
+      "id": "T007",
+      "file": "coloured-noise-control.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "correlated-multivariate-choice",
+      "title": "Correlated multivariate sampling",
+      "mechanism": "Sample related variables jointly rather than choosing every dimension independently.",
+      "mapping": "Couple gate, accent and leap preferences through a valid covariance structure, then project into allowable musical ranges.",
+      "example": "A profile might correlate larger leaps with longer gates but keep attack count independent, producing room for a leap to register.",
+      "controls": "Energy can alter variance; emotion selects a tested coupling profile; change covariance at phrase boundaries.",
+      "failure": "A non-positive-semidefinite covariance is invalid. Clipping and quantization can substantially change the intended correlations.",
+      "experiment": "Inspect realized score correlations and compare them with the latent sampled values, not just the requested matrix.",
+      "sources": [
+        "stats"
+      ],
+      "id": "T008",
+      "file": "correlated-multivariate-choice.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "low-discrepancy-sequences",
+      "title": "Low-discrepancy and quasi-random exploration",
+      "mechanism": "Generate deterministic points that cover a parameter space more evenly than ordinary independent sampling in a specified sense.",
+      "mapping": "Explore combinations of motif transformation, register and density when building an audition library.",
+      "example": "Use a two-dimensional Sobol design to audition register spread and gate ratio, then compare coverage with the same number of random proposals.",
+      "controls": "Emotion selects a region of the library; energy selects its density coordinate; time orders the selected transitions musically.",
+      "failure": "Coverage is not musical variety. Sobol balance properties require attention to sample counts and sampling method.",
+      "experiment": "Measure parameter coverage and duplicate realized scores; listen after arranging candidates into phrases.",
+      "sources": [
+        "sobol"
+      ],
+      "id": "T009",
+      "file": "low-discrepancy-sequences.md"
+    },
+    {
+      "group": "Probability and stochastic processes",
+      "slug": "bayesian-preference-updating",
+      "title": "Bayesian preference updating",
+      "mechanism": "Update a prior belief with explicit observations, retaining uncertainty.",
+      "mapping": "Learn session-local acceptance rates for optional motifs or actions from deliberate feedback, not from every Stop gesture.",
+      "example": "A Beta(1,1) prior plus three accepts and one reject becomes Beta(4,2), with mean 2/3. Feedback quality still determines meaning.",
+      "controls": "Keep separate contexts for profile, emotion and energy; use session time for optional forgetting rather than treating old judgments as permanent.",
+      "failure": "Acceptance can reflect timing or usability rather than musical taste. Sparse contexts can encourage overconfident personalization.",
+      "experiment": "Compare calibrated predictive uncertainty and useful recommendations against a fixed-preference baseline.",
+      "sources": [
+        "stats"
+      ],
+      "id": "T010",
+      "file": "bayesian-preference-updating.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "markov-chains",
+      "title": "First-order Markov chains",
+      "mechanism": "The next-state distribution depends on the present state.",
+      "mapping": "Represent states as scale degrees, rhythmic cells or harmonic functions. Add metric and cadence constraints outside the chain.",
+      "example": "For C,D,E states, C may transition to D with .75 and E with .25. Sampling follows that row; it does not understand a phrase ending.",
+      "controls": "Blend valid transition matrices at phrase boundaries; energy controls rhythmic emissions, while emotion chooses profile-conditioned alternatives.",
+      "failure": "Dead rows, absorbing states and short loops need explicit handling. A chain can imitate local habits while losing long-term form.",
+      "experiment": "Check row sums and empirical transitions, then compare phrase closure and theme recall with a conductor added.",
+      "sources": [
+        "idyom"
+      ],
+      "id": "T011",
+      "file": "markov-chains.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "higher-order-markov",
+      "title": "Higher-order Markov and n-gram models",
+      "mechanism": "Condition the next event on a fixed-length history of previous symbols.",
+      "mapping": "Use recent intervals and duration categories to preserve recognizable cells beyond one step.",
+      "example": "Histories [0,2] and [4,2] can lead to different continuations although their last degree is the same. An unseen pair needs backoff.",
+      "controls": "Emotion changes candidate preferences after prediction; energy changes rhythm conditioning; phrase time adds target information.",
+      "failure": "The number of contexts grows rapidly and sparse training can copy fragments or leave dead ends.",
+      "experiment": "Compare several orders with held-out sequences and track repeated training fragments separately from likelihood.",
+      "sources": [
+        "idyom"
+      ],
+      "id": "T012",
+      "file": "higher-order-markov.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "variable-order-markov",
+      "title": "Variable-order Markov and prediction by partial matching",
+      "mechanism": "Use longer contexts when supported and shorter ones when data are sparse.",
+      "mapping": "Model intervals, rhythm and metrical viewpoints with explicit smoothing, borrowing the predictive framing of IDyOM.",
+      "example": "If a three-event history is unseen, consult its two-event suffix and shorter contexts; specify interpolation rather than inventing probability mass.",
+      "controls": "Energy can steer rhythmic candidates after prediction; emotion can choose a corpus/profile; freeze context at the composition boundary.",
+      "failure": "Backoff design affects surprise estimates. A predictive model is not automatically a generative aesthetic policy.",
+      "experiment": "Evaluate held-out prediction and generated phrase structure separately; record which context lengths contributed.",
+      "sources": [
+        "idyom"
+      ],
+      "id": "T013",
+      "file": "variable-order-markov.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "hidden-markov-models",
+      "title": "Hidden Markov models",
+      "mechanism": "A latent Markov state governs the distribution of observed events.",
+      "mapping": "Let hidden states represent phrase roles such as statement, response and closing, with separate note/rhythm emissions.",
+      "example": "A closing state can favour long tonic-related events while an active state favours short connecting notes. States need not equal emotion labels.",
+      "controls": "Emotion biases allowable emissions; energy adjusts activity within a state; time and minimum residence prevent flicker.",
+      "failure": "Learned states may not match named musical roles. Ordinary HMM duration behaviour may produce implausibly rapid state changes.",
+      "experiment": "Inspect state occupancy and emitted music; compare with an explicitly authored role-state controller.",
+      "sources": [
+        "hmm"
+      ],
+      "id": "T014",
+      "file": "hidden-markov-models.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "semi-markov-models",
+      "title": "Semi-Markov and explicit-duration models",
+      "mechanism": "Model state residence durations explicitly instead of letting transitions alone determine them.",
+      "mapping": "Represent section or phrase roles whose lengths matter musically, while a lower-level generator fills their material.",
+      "example": "Choose a contrast duration from four or eight bars, then generate its phrase events without resampling its role every beat.",
+      "controls": "Energy can influence allowed duration weights; emotion affects texture; ending requests override only at valid boundaries.",
+      "failure": "Too many duration options dilute form. Truncating a sampled duration can invalidate the model assumptions.",
+      "experiment": "Compare residence-length distributions and audible section clarity against a memoryless state-transition baseline.",
+      "sources": [
+        "hsmm"
+      ],
+      "id": "T015",
+      "file": "semi-markov-models.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "factorial-state-models",
+      "title": "Factorial and factored state models",
+      "mechanism": "Represent several interacting latent or observed state components rather than one undifferentiated state label.",
+      "mapping": "Separate harmonic region, texture and rhythmic activity, then constrain incompatible joint combinations.",
+      "example": "A stable harmony can coexist with an active texture; changing the texture state need not reset the harmonic route.",
+      "controls": "Emotion steers selected factors; energy steers activity; section time arbitrates simultaneous transitions.",
+      "failure": "Independent factors can create musically incompatible combinations. The full joint state space can still grow combinatorially.",
+      "experiment": "Compare factor independence with constrained coupling and count rejected joint states alongside listening judgments.",
+      "sources": [
+        "factorial"
+      ],
+      "id": "T016",
+      "file": "factorial-state-models.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "constrained-markov-bridges",
+      "title": "Constrained Markov generation and endpoint bridges",
+      "mechanism": "Condition sequence sampling on admissibility rules or a required future endpoint.",
+      "mapping": "Choose a cadence target first, then favour transitions that can still reach it in the remaining slots.",
+      "example": "If only two events remain and a target is unreachable from one candidate, reject it or compute endpoint-conditioned transition weights.",
+      "controls": "Emotion changes the valid route vocabulary; energy changes optional subdivisions; time supplies the remaining horizon.",
+      "failure": "Simply forcing the last note can create an awkward leap. Filtering transitions requires renormalization and dead-end detection.",
+      "experiment": "Check endpoint reachability and compare whole-route conditioning against last-note replacement.",
+      "sources": [
+        "idyom",
+        "paths"
+      ],
+      "id": "T017",
+      "file": "constrained-markov-bridges.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "time-varying-markov",
+      "title": "Time-inhomogeneous Markov chains",
+      "mechanism": "Allow the transition matrix to vary with a declared time or control variable.",
+      "mapping": "Move from stable to exploratory harmonic preferences across a section without replacing the state vocabulary.",
+      "example": "If matrices A and B are row-stochastic, (1-w)A+wB remains row-stochastic for 0<=w<=1. That does not preserve every stationary property.",
+      "controls": "Use smoothed wheel intensity for w; keep energy in rhythm decisions; commit matrix changes at an explicit boundary.",
+      "failure": "Fast changes can erase learned local habits. Interpolating matrices is not proof of perceptually linear emotion change.",
+      "experiment": "Verify nonnegative normalized rows and compare the requested blend with actual realized harmonic behaviour.",
+      "sources": [
+        "idyom"
+      ],
+      "id": "T018",
+      "file": "time-varying-markov.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "factor-oracles",
+      "title": "Factor-oracle recombination",
+      "mechanism": "Use a compact sequence automaton and shared-context links to recombine observed material.",
+      "mapping": "Store interval/rhythm tuples from authored or session motifs and jump between context-compatible continuations.",
+      "example": "Two motifs sharing the suffix [up-step,repeat] can offer different next cells; filter the proposed continuation against the current harmony.",
+      "controls": "Energy selects rhythmic variants; emotion biases eligible continuations; phrase time controls jump opportunities.",
+      "failure": "Context-compatible symbols can still make poor phrase joins. Recombination can overuse a small source corpus.",
+      "experiment": "Track jump points, source provenance and listener-recognized continuity; compare with simple cell concatenation.",
+      "sources": [
+        "oracle"
+      ],
+      "id": "T019",
+      "file": "factor-oracles.md"
+    },
+    {
+      "group": "Markov models and sequence memory",
+      "slug": "polya-urn-memory",
+      "title": "Reinforced sampling and Polya-urn memory",
+      "mechanism": "Increase an outcome weight when it is selected, creating history-dependent reinforcement.",
+      "mapping": "Give a motif recurring presence within one session, while a decay or cap keeps one idea from taking over.",
+      "example": "Starting weights [1,1], selecting A and adding one gives [2,1], so the next probability of A is 2/3.",
+      "controls": "Emotion can choose eligible motif families; energy affects realization, not reinforcement; time can decay old weights.",
+      "failure": "Unbounded reinforcement can lock into an arbitrary early choice. Frequency is not a measure of quality.",
+      "experiment": "Compare reinforced, decayed and unreinforced recall under matched seeds and explicit motif-retention goals.",
+      "sources": [
+        "choice"
+      ],
+      "id": "T020",
+      "file": "polya-urn-memory.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "genetic-algorithms",
+      "title": "Genetic algorithms for phrases",
+      "mechanism": "Evolve a population using selection, recombination and mutation over an explicit representation.",
+      "mapping": "Encode a phrase as rhythmic cells, degree anchors and articulation genes. Decode and validate before calculating musical criteria.",
+      "example": "Cross two four-cell phrases only at cell boundaries, preserve their cadence anchor, then mutate one optional interval.",
+      "controls": "Energy selects density objectives; emotion selects profile preferences; evolution prepares future phrases outside the commitment window.",
+      "failure": "Fitness can reward bland repetition; naive crossover breaks meter and voice-leading. More generations do not prove better music.",
+      "experiment": "Compare against equal-budget random search, log objective components and audition held-out seeds.",
+      "sources": [
+        "deap"
+      ],
+      "id": "T021",
+      "file": "genetic-algorithms.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "genetic-programming",
+      "title": "Typed genetic programming",
+      "mechanism": "Evolve programs or expression trees rather than only fixed-length parameter vectors.",
+      "mapping": "Use typed operators such as sequence, rotate, mask and transpose; terminals are motifs or bounded patterns.",
+      "example": "A valid tree can be rotate(sequence(m1,m2),oneBeat). Forbid an operator whose expansion exceeds the phrase event budget.",
+      "controls": "Emotion ranks transformations; energy bounds expansion; time selects when a generated program becomes active.",
+      "failure": "Tree bloat and unrestricted evaluation threaten deadlines. Program validity does not ensure musical coherence.",
+      "experiment": "Measure tree size, event expansion and motif preservation; compare learned trees with a small authored grammar.",
+      "sources": [
+        "gp"
+      ],
+      "id": "T022",
+      "file": "genetic-programming.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "grammatical-evolution",
+      "title": "Grammar-guided evolutionary encoding",
+      "mechanism": "Decode an evolving genotype through a constrained production grammar.",
+      "mapping": "Evolve phrase plans that can only produce legal sections, harmonic functions and motif transformations.",
+      "example": "A gene chooses between statement-plus-answer and statement-plus-rest; another selects a permitted cadence route.",
+      "controls": "Emotion changes production preferences; energy changes legal density variants; decode against a fixed phrase horizon.",
+      "failure": "Small genotype changes can cause large phenotype changes. Different genes may decode to the same phrase.",
+      "experiment": "Count invalid or duplicate decoded results and compare controllability against direct phrase encoding.",
+      "sources": [
+        "ge",
+        "gp"
+      ],
+      "id": "T023",
+      "file": "grammatical-evolution.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "differential-evolution",
+      "title": "Differential evolution of composer parameters",
+      "mechanism": "Use population-vector differences to propose continuous parameter candidates.",
+      "mapping": "Search profile parameters such as contour bias, gate ratio and register spread; let a separate decoder realize notes.",
+      "example": "Candidate vectors describe three bounded preferences, not fractional MIDI notes. Decode each with identical evaluation seeds.",
+      "controls": "Energy/emotion supply evaluation scenarios; search completes offline or for a future section, never in a timing callback.",
+      "failure": "Discrete decoding creates plateaus and abrupt jumps. Optimizing one seed overfits incidental choices.",
+      "experiment": "Evaluate across training and held-out control trajectories and compare with a coarse parameter grid.",
+      "sources": [
+        "de"
+      ],
+      "id": "T024",
+      "file": "differential-evolution.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "cma-es",
+      "title": "Covariance-matrix adaptation evolution strategy",
+      "mechanism": "Adapt a search distribution over continuous parameters, including relationships between parameter directions.",
+      "mapping": "Tune interacting symbolic preferences such as leap size, articulation and rhythmic contrast as a profile-level search.",
+      "example": "A candidate is a five-parameter profile evaluated across several fixed motifs; receiver volume is excluded from the musical objective.",
+      "controls": "Emotion and energy define test contexts; iterations run away from playback; freeze accepted parameters for a session revision.",
+      "failure": "Noisy listener scores and hard quantization can frustrate search. Continuous parameter efficiency does not imply better composition.",
+      "experiment": "Repeat evaluations across seeds and compare with differential evolution using equal decoding budgets.",
+      "sources": [
+        "cma"
+      ],
+      "id": "T025",
+      "file": "cma-es.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "nsga-ii",
+      "title": "Pareto search with NSGA-II",
+      "mechanism": "Maintain candidates trading off multiple objectives through nondominated selection and diversity management.",
+      "mapping": "Keep separate objectives for motif identity, target density and voice-leading instead of hiding their trade-offs in one score.",
+      "example": "A sparse recognizable phrase and a busier less-recognizable phrase can both remain nondominated; choose with the current musical goal.",
+      "controls": "Energy selects a desired region of the frontier; emotion adjusts criteria; time limits when a candidate may be committed.",
+      "failure": "Bad objectives produce a misleading frontier. Many objectives can leave almost everything nondominated.",
+      "experiment": "Inspect representative frontier candidates and validate criteria with musicians rather than reporting frontier size as quality.",
+      "sources": [
+        "nsga"
+      ],
+      "id": "T026",
+      "file": "nsga-ii.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "novelty-search",
+      "title": "Novelty search",
+      "mechanism": "Select behaviourally unusual candidates relative to neighbours or an archive rather than only a target-performance score.",
+      "mapping": "Define descriptors such as accent position, contour shape and rest distribution for phrase exploration.",
+      "example": "Two phrases with different note names but identical contour and rhythm can be close in the chosen descriptor space.",
+      "controls": "Use novelty as an optional exploration setting; emotion keeps profile eligibility; energy stays an independent activity constraint.",
+      "failure": "Novelty can reward noise, extreme density or trivial transposition if descriptors are poorly chosen.",
+      "experiment": "Compare descriptor novelty with listener-perceived difference and enforce minimum musical validity before archive admission.",
+      "sources": [
+        "novelty"
+      ],
+      "id": "T027",
+      "file": "novelty-search.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "map-elites",
+      "title": "MAP-Elites and quality-diversity libraries",
+      "mechanism": "Keep high-performing candidates in cells of a user-defined behaviour-descriptor space.",
+      "mapping": "Build an auditionable motif library indexed by density and contour, while evaluating validity and identity within each cell.",
+      "example": "A 4-by-4 archive can contain sixteen different density/contour regions. Empty cells indicate missing candidates, not bad music.",
+      "controls": "Energy selects a density region; emotion chooses among compatible colours; section time follows a coherent route through the archive.",
+      "failure": "Descriptor coverage does not establish emotional coverage. Selecting distant cells can destroy continuity.",
+      "experiment": "Inspect archive diversity, transition quality and held-out control following, comparing against an equally sized random library.",
+      "sources": [
+        "map"
+      ],
+      "id": "T028",
+      "file": "map-elites.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "interactive-evolution",
+      "title": "Interactive evolutionary selection",
+      "mechanism": "Use explicit human judgments to help select or rank candidates during an evolutionary process.",
+      "mapping": "Present a small, comparable set of motif variants and let the performer keep, reject or pin material.",
+      "example": "Audition four equal-length phrases under the same renderer; keep two parents and generate a limited next batch.",
+      "controls": "The wheel specifies desired expression; energy is held fixed during a comparison; feedback changes future candidates only.",
+      "failure": "Listening fatigue, order effects and renderer preference can dominate judgments. Frequent interruption undermines autonomous flow.",
+      "experiment": "Measure useful choices per audition, fatigue and later preference stability; offer an offline curation mode.",
+      "sources": [
+        "deap"
+      ],
+      "id": "T029",
+      "file": "interactive-evolution.md"
+    },
+    {
+      "group": "Evolution and quality-diversity",
+      "slug": "coevolution",
+      "title": "Co-evolution of musical parts",
+      "mechanism": "Evaluate evolving populations through their interactions rather than an isolated score for each individual.",
+      "mapping": "Evolve lead and answer candidates together, rewarding complementary rhythm and motif relations within shared budgets.",
+      "example": "A good answer is tested against several lead phrases, so it cannot succeed only by exploiting one partner.",
+      "controls": "Emotion defines shared phrase aims; energy supplies a joint attack budget; selection happens over future phrase ensembles.",
+      "failure": "Populations can cycle or collude toward a simplistic convention. Strong isolated parts may combine poorly.",
+      "experiment": "Test cross-pairings with held-out partners and compare joint evaluation against independently optimized parts.",
+      "sources": [
+        "deap",
+        "mesa"
+      ],
+      "id": "T030",
+      "file": "coevolution.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "game-of-life",
+      "title": "Conway’s Game of Life",
+      "mechanism": "On a binary grid, dead cells with three neighbours are born; live cells survive with two or three.",
+      "mapping": "Treat rows as degrees and columns as rhythmic slots. Compare all-live-cell attacks, births-only attacks and persistent-cell sustains.",
+      "example": "A three-cell horizontal blinker becomes vertical after one synchronous step, then horizontal again. These give different rhythmic and harmonic readings.",
+      "controls": "Advance generations on beats or bars. Energy changes the event-selection budget; emotion selects the pitch/articulation mapping, not an assumed biological feeling.",
+      "failure": "Life can freeze, oscillate or die. Torus and dead-edge boundaries behave differently; in-place updates implement a different process.",
+      "experiment": "Verify block, blinker and glider patterns, then compare mappings at equal attack budgets and record every reseed.",
+      "sources": [
+        "life",
+        "rules"
+      ],
+      "id": "T031",
+      "file": "game-of-life.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "elementary-cellular-automata",
+      "title": "Elementary cellular automata: Rules 30, 90 and 110",
+      "mechanism": "Update a binary line using the three-cell neighbourhood and one of 256 local rule tables.",
+      "mapping": "Read each generation as a rhythmic mask or use one column over time as a part trigger. Map rule outputs through a tonal vocabulary.",
+      "example": "Rule 90 uses left XOR right. A single central live cell produces two live neighbours in its next generation.",
+      "controls": "Time controls generation rate; energy selects a capped number of live slots; emotion can choose mapping and approved rule families.",
+      "failure": "Chaotic appearance is not musical direction. Boundary choice and sampling stride can dominate the audible result.",
+      "experiment": "Check the exact rule table, seed and edge policy; compare several rules with the same symbolic mapping.",
+      "sources": [
+        "eca"
+      ],
+      "id": "T032",
+      "file": "elementary-cellular-automata.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "brians-brain",
+      "title": "Brian’s Brain",
+      "mechanism": "Use off, firing and refractory states; off cells fire with two firing neighbours, and firing cells become refractory.",
+      "mapping": "Emit attacks only on entry to firing. Refractory states prevent an immediate retrigger at the same location.",
+      "example": "A firing cell is refractory at the next generation and off at the following one; it cannot fire again during the refractory step.",
+      "controls": "Energy controls accepted trigger count; emotion selects contour and gates; retain a generation clock independent from note releases.",
+      "failure": "A births-only rhythm may still become too dense. Treating refractory cells as active neighbours changes the rule.",
+      "experiment": "Verify the state cycle and neighbour counting; compare repeated-note spacing with binary Life at matched density.",
+      "sources": [
+        "gen"
+      ],
+      "id": "T033",
+      "file": "brians-brain.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "cyclic-cellular-automata",
+      "title": "Cyclic cellular automata",
+      "mechanism": "Cells advance through an ordered set of states when neighbourhood conditions favour the next state.",
+      "mapping": "Map state to a motif family or harmonic colour and state changes to attacks, creating moving symbolic waves.",
+      "example": "With states 0,1,2, a cell may advance 2 to 0 when the required neighbouring zeros are present. Specify the threshold and neighbourhood.",
+      "controls": "Energy limits extracted events; emotion selects the state-to-music palette; section time controls when the palette may change.",
+      "failure": "The spatial wave does not supply a cadence. Similar state counts can conceal very different wave geometry.",
+      "experiment": "Compare state occupancy and transition counts with the actual phrase trace; test fixed and wrapped boundaries.",
+      "sources": [
+        "rules"
+      ],
+      "id": "T034",
+      "file": "cyclic-cellular-automata.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "generations-automata",
+      "title": "Generations automata and cellular memory",
+      "mechanism": "Extend Life-like rules with additional decay or history states.",
+      "mapping": "Use cell age to choose articulation or whether a motif is repeated, answered or allowed to fade.",
+      "example": "A trigger entering a four-state cycle can create one attack followed by two silent memory steps rather than three repeated attacks.",
+      "controls": "Energy can select extraction density while decay duration stays stable; emotion changes the interpretation of age.",
+      "failure": "Rule notation may order survival and birth differently from B/S notation. More states do not automatically produce longer musical memory.",
+      "experiment": "Validate rule parsing and age transitions, then compare decay-as-silence with decay-as-sustained-note mappings.",
+      "sources": [
+        "gen"
+      ],
+      "id": "T035",
+      "file": "generations-automata.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "reversible-block-automata",
+      "title": "Reversible block cellular automata",
+      "mechanism": "Apply reversible local transformations on alternating partitions of a grid.",
+      "mapping": "Move a fixed population of rhythmic tokens between slots, conserving material while changing its arrangement.",
+      "example": "A token-swapping block rule preserves the number of tokens; alternate the block origin so tokens can cross previous partition boundaries.",
+      "controls": "Energy selects accents or orchestration rather than silently changing conserved population; emotion selects admissible permutations.",
+      "failure": "Conservation can still yield tedious cycles. A non-bijective rule loses reversibility; note gates must not depend on visual persistence alone.",
+      "experiment": "Run forward then inverse steps and verify state recovery, then measure rhythmic recurrence and useful variation.",
+      "sources": [
+        "rules"
+      ],
+      "id": "T036",
+      "file": "reversible-block-automata.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "probabilistic-cellular-automata",
+      "title": "Probabilistic cellular automata",
+      "mechanism": "Use a conditional probability for a cell transition instead of a wholly deterministic rule.",
+      "mapping": "Introduce controlled uncertainty into a rhythmic mask while preserving deterministic anchors outside the grid.",
+      "example": "A candidate birth is accepted with .7 probability keyed by generation and coordinate. Re-querying the same generation must agree.",
+      "controls": "Energy controls the cap independently from birth probability; emotion can choose a validated transition regime.",
+      "failure": "Small probability changes can cause global extinction or explosion. Unkeyed randomness breaks reproducible querying.",
+      "experiment": "Measure survival, density and periodicity over many seeds; label stochastic reseeding separately from ordinary evolution.",
+      "sources": [
+        "life",
+        "choice"
+      ],
+      "id": "T037",
+      "file": "probabilistic-cellular-automata.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "lenia",
+      "title": "Lenia and continuous cellular automata",
+      "mechanism": "Evolve continuous cell values through neighbourhood kernels and growth functions.",
+      "mapping": "Extract region mass, centroid and movement as slow symbolic register or texture controls, rather than emitting a note from every pixel.",
+      "example": "Quantize a moving centroid to a degree centre once per bar; use total mass to weight a capped set of optional attacks.",
+      "controls": "Time separates simulation step from musical sampling; energy changes extraction limits; emotion chooses the profile mapper.",
+      "failure": "Threshold chatter and numerical instability can dominate. A continuous visual organism is not evidence of expressive musical behaviour.",
+      "experiment": "Check bounded finite states and sampling-rate sensitivity; compare regional features with raw threshold crossings.",
+      "sources": [
+        "lenia"
+      ],
+      "id": "T038",
+      "file": "lenia.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "reaction-diffusion",
+      "title": "Gray–Scott reaction-diffusion",
+      "mechanism": "Couple local reaction and spatial diffusion of two concentration fields.",
+      "mapping": "Use connected regions and threshold-crossing fronts to create phrase activity or spatially organized symbolic voices.",
+      "example": "Sample four fixed regions at phrase boundaries and assign each an activity rank. Avoid turning thousands of simulation cells into simultaneous notes.",
+      "controls": "Energy bounds active musical regions; emotion selects register and articulation; feed/kill changes are slow experimental controls.",
+      "failure": "Simulation parameters have nonlinear regime changes. A stable visual pattern may produce static musical output.",
+      "experiment": "Test numerical stability, region extraction and density caps before comparing musical trajectories with simple envelopes.",
+      "sources": [
+        "rd"
+      ],
+      "id": "T039",
+      "file": "reaction-diffusion.md"
+    },
+    {
+      "group": "Cellular automata and spatial processes",
+      "slug": "langtons-ant",
+      "title": "Langton-style ant and mobile automata",
+      "mechanism": "An agent reads a cell state, turns, changes that state and moves according to a fixed local rule.",
+      "mapping": "Use turns as interval directions and visited cells as rhythm or motif-memory locations.",
+      "example": "For a specified two-colour rule, alternate left/right turning according to the current colour; the same seed and rule reproduce the path.",
+      "controls": "Energy changes extraction rate or accents, not secretly simulation speed; emotion maps turns into allowed contour vocabulary.",
+      "failure": "Long transients and repeated highways can dominate output. Boundary wrapping materially changes future visits.",
+      "experiment": "Replay exact coordinates and compare turn-to-contour with location-to-pitch mappings under identical event counts.",
+      "sources": [
+        "eca",
+        "mesa"
+      ],
+      "id": "T040",
+      "file": "langtons-ant.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "context-free-grammars",
+      "title": "Context-free musical grammars",
+      "mechanism": "Expand nonterminal symbols through production rules until a terminal structure is obtained.",
+      "mapping": "Let phrases expand into statement, response and cadence cells, each carrying a known duration and harmonic contract.",
+      "example": "Phrase -> Statement Response Cadence; assign durations 4,2,2 beats so the result fills eight beats exactly.",
+      "controls": "Emotion chooses legal terminal variants; energy chooses ornamented variants; depth and duration constrain expansion.",
+      "failure": "Recursive productions can fail to terminate or expand beyond the intended duration. Valid syntax is not convincing phrasing.",
+      "experiment": "Check termination, duration sums and join conditions; compare generated forms with authored sequences.",
+      "sources": [
+        "grammar",
+        "lsys"
+      ],
+      "id": "T041",
+      "file": "context-free-grammars.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "probabilistic-grammars",
+      "title": "Probabilistic context-free grammars",
+      "mechanism": "Attach normalized choice probabilities to alternative productions.",
+      "mapping": "Vary phrase structures while retaining the same hierarchical musical roles and terminal constraints.",
+      "example": "A response may expand to Echo with .6 probability or Contrast with .4. Its selected production still must meet the duration contract.",
+      "controls": "The wheel modifies profile-specific production weights; energy selects surface complexity; section position conditions ending rules.",
+      "failure": "High recursion probability can create excessive depth. Probability-weighted syntax does not ensure balanced large-scale form.",
+      "experiment": "Measure realized production frequencies, termination and phrase lengths before listening to structural diversity.",
+      "sources": [
+        "grammar",
+        "choice"
+      ],
+      "id": "T042",
+      "file": "probabilistic-grammars.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "deterministic-l-systems",
+      "title": "Deterministic L-systems",
+      "mechanism": "Rewrite all symbols in parallel using fixed productions.",
+      "mapping": "Interpret the resulting string as interval moves, rests and rhythmic cells; keep the derivation separate from musical mapping.",
+      "example": "With A->AB and B->A, successive strings are A, AB, ABA, ABAAB. Map A and B to distinct authored cells.",
+      "controls": "Generation controls structural scale; energy controls selected realizations; emotion selects the A/B musical vocabulary.",
+      "failure": "String length can grow rapidly. Plant-like or fractal structure does not automatically become recognizable musical form.",
+      "experiment": "Verify derivation lengths and token mapping; compare repeated generations at constant total duration.",
+      "sources": [
+        "lsys"
+      ],
+      "id": "T043",
+      "file": "deterministic-l-systems.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "stochastic-l-systems",
+      "title": "Stochastic L-systems",
+      "mechanism": "Choose among parallel rewrite alternatives with declared probabilities.",
+      "mapping": "Generate related phrase families whose branching structures vary without replacing the whole motif vocabulary.",
+      "example": "A may become AB with .7 probability or BA with .3; use independent keyed choices for each symbol instance.",
+      "controls": "Emotion shifts bounded production weights; energy controls allowed terminal density; derivation depth is fixed per planned section.",
+      "failure": "Structural randomness can erase the seed theme. A mutable random stream makes results depend on traversal order.",
+      "experiment": "Compare motif resemblance and derivation diversity across seeds, with exact duration normalization.",
+      "sources": [
+        "botany",
+        "choice"
+      ],
+      "id": "T044",
+      "file": "stochastic-l-systems.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "context-sensitive-l-systems",
+      "title": "Context-sensitive rewriting",
+      "mechanism": "Choose a rewrite using neighbouring symbols as well as the symbol being replaced.",
+      "mapping": "Make a response depend on surrounding harmonic or phrase-role tokens, allowing locally aware development.",
+      "example": "Rewrite an ornament token differently when preceded by a dominant marker than when preceded by a tonic marker.",
+      "controls": "Emotion modifies allowed response rules; energy sets ornament budgets; evaluate each generation against the same frozen context.",
+      "failure": "Overlapping matches need precedence rules. Updating symbols in place accidentally changes parallel rewrite semantics.",
+      "experiment": "Use small hand-derived strings to check matching and compare context-aware joins with context-free ones.",
+      "sources": [
+        "botany"
+      ],
+      "id": "T045",
+      "file": "context-sensitive-l-systems.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "parametric-l-systems",
+      "title": "Parametric L-systems",
+      "mechanism": "Carry numerical parameters on symbols and transform them through production expressions.",
+      "mapping": "Attach degree offset, duration and accent to motif cells, enabling gradual growth or contraction.",
+      "example": "A cell F(d,t) can expand to F(d,t/2) followed by F(d+2,t/2), preserving total duration while adding movement.",
+      "controls": "Energy bounds subdivision; emotion controls allowed degree changes; section time fixes recursion depth.",
+      "failure": "Duration can shrink below playable limits. Parameter growth may push register outside the profile.",
+      "experiment": "Check total duration, minimum gate and pitch bounds at every derivation, not only after final decoding.",
+      "sources": [
+        "botany"
+      ],
+      "id": "T046",
+      "file": "parametric-l-systems.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "graph-grammars",
+      "title": "Graph grammars for form",
+      "mechanism": "Rewrite subgraphs according to rules while retaining declared connections.",
+      "mapping": "Expand a section graph into statement, contrast and return structures with explicit incoming and outgoing harmonic conditions.",
+      "example": "Replace one development node with two linked variants while keeping its entrance and exit nodes unchanged.",
+      "controls": "Emotion changes eligible expansions; energy changes orchestration inside nodes; form edits affect future sections only.",
+      "failure": "Rewrites can introduce unreachable endings or cycles. Graph validity alone does not make transitions audible.",
+      "experiment": "Check reachability and bounded duration, then compare the heard form with its planned graph.",
+      "sources": [
+        "paths",
+        "lsys"
+      ],
+      "id": "T047",
+      "file": "graph-grammars.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "petri-nets",
+      "title": "Petri-net-inspired musical coordination",
+      "mechanism": "Tokens enable transitions subject to input and output conditions.",
+      "mapping": "Represent available musical roles or turn-taking permissions as tokens, so an answer begins only after its lead phrase has yielded.",
+      "example": "A lead-finished token and a harmony-ready token jointly enable an answer transition; firing consumes the permission and starts the response.",
+      "controls": "Energy controls optional transitions; emotion selects response vocabulary; musical time controls transition deadlines.",
+      "failure": "Deadlock, token accumulation and starvation are musical failures as well as formal ones. A timeout needs an explicit rest/fallback policy.",
+      "experiment": "Trace token conservation and reachability on interrupted phrases, then assess whether turn-taking sounds intentional.",
+      "sources": [
+        "petri"
+      ],
+      "id": "T048",
+      "file": "petri-nets.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "finite-state-machines",
+      "title": "Finite-state arrangement machines",
+      "mechanism": "Use explicit states and guarded transitions to control behaviour.",
+      "mapping": "Define sparse, moving, intense and closing textures, each with part permissions and minimum residence time.",
+      "example": "Enter intense above energy .7 and leave below .5; a separate finish request moves toward closing at the next valid boundary.",
+      "controls": "Energy drives guarded transitions; emotion changes state realization; elapsed bars enforce residence and ending reachability.",
+      "failure": "Threshold flicker and unreachable states create unstable arrangements. State names should not claim measured human emotions.",
+      "experiment": "Exercise threshold crossings, rapid controls and finish requests; compare against an unguarded threshold controller.",
+      "sources": [
+        "bt"
+      ],
+      "id": "T049",
+      "file": "finite-state-machines.md"
+    },
+    {
+      "group": "Grammars and rewriting",
+      "slug": "behaviour-trees",
+      "title": "Behaviour trees for a musical conductor",
+      "mechanism": "Compose conditions and actions through success, failure and running states.",
+      "mapping": "Prioritize Stop, cadence obligations, human turn-taking and optional development through a readable decision tree.",
+      "example": "Try satisfy-ending first; otherwise preserve-human-lead; otherwise choose one developmental action. Running actions retain their state.",
+      "controls": "Emotion affects action preferences; energy affects budgets; the tree ticks at planning boundaries, not for every audio sample.",
+      "failure": "A tree can repeatedly restart an action or starve lower priorities. Running-state cancellation must release owned notes.",
+      "experiment": "Log branches and cancellation paths; compare decisions against a fixed scenario set and musician annotations.",
+      "sources": [
+        "bt"
+      ],
+      "id": "T050",
+      "file": "behaviour-trees.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "logistic-map",
+      "title": "Logistic-map control",
+      "mechanism": "Iterate x_next=r*x*(1-x), whose behaviour depends strongly on r and the initial condition.",
+      "mapping": "Map a bounded trajectory to phrase-level accent or motif-choice preferences, then apply musical constraints.",
+      "example": "For r=4 and x=.2, the next value is .64 and then .9216. Repeated rounding to notes can hide much of the trajectory.",
+      "controls": "Time sets iteration versus musical sampling; energy sets output range; emotion chooses a mapper rather than an asserted chaos-to-feeling rule.",
+      "failure": "Finite precision and exceptional seeds can produce periodic or degenerate output. More chaotic parameters do not guarantee more energy.",
+      "experiment": "Record seed, precision and sampling stride; compare with uniform and correlated random controls.",
+      "sources": [
+        "dynamics"
+      ],
+      "id": "T051",
+      "file": "logistic-map.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "henon-map",
+      "title": "Henon-map symbolic control",
+      "mechanism": "Iterate a two-dimensional nonlinear map, conventionally x_next=1-a*x*x+y and y_next=b*x.",
+      "mapping": "Map two related coordinates to contour centre and rhythmic-cell preference, using measured normalization bounds.",
+      "example": "Compute both next coordinates from the old state. Updating y from the new x changes the map.",
+      "controls": "Energy bounds emitted activity; emotion selects allowed cells; sample at declared beat or bar intervals.",
+      "failure": "Some parameters diverge; attractor shape does not establish musical form. Fixed min-max assumptions can clip rare excursions.",
+      "experiment": "Check finite bounded trajectories and coordinate-update order before testing heard correlation between musical dimensions.",
+      "sources": [
+        "dynamics"
+      ],
+      "id": "T052",
+      "file": "henon-map.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "lorenz-system",
+      "title": "Lorenz-system trajectories",
+      "mechanism": "Integrate coupled nonlinear differential equations to obtain a time-varying trajectory.",
+      "mapping": "Use changes between broad trajectory regions as section cues and one coordinate as a bounded register preference.",
+      "example": "Sample a normalized coordinate once per bar rather than translating every solver step into a note. Store solver settings for replay.",
+      "controls": "Energy affects musical extraction; emotion maps regions to phrase vocabularies; simulation and transport time remain distinct.",
+      "failure": "Integration step and initial state affect outcomes. Chaotic divergence makes regenerated long sessions sensitive to numerical implementation.",
+      "experiment": "Compare integration tolerances and save resolved symbolic traces; test whether region changes support useful musical transitions.",
+      "sources": [
+        "dynamics"
+      ],
+      "id": "T053",
+      "file": "lorenz-system.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "circle-maps",
+      "title": "Circle maps and modular phase processes",
+      "mechanism": "Iterate an angular state modulo one, optionally with nonlinear phase feedback.",
+      "mapping": "Use phase crossing as an attack source and phase differences as rhythmic relationships between parts.",
+      "example": "The simple rotation theta_next=(theta+1/3) mod 1 repeats after three steps; an irrational increment has different recurrence behaviour.",
+      "controls": "Energy can alter extraction density while preserving reference tempo; emotion adjusts accents and permitted phrase roles.",
+      "failure": "Floating-point equality is unsuitable for detecting wrap events. Nonlinear parameters can produce unexpected locking regimes.",
+      "experiment": "Count crossings from unwrapped phase and compare rational and irrational rotations under finite precision.",
+      "sources": [
+        "dynamics"
+      ],
+      "id": "T054",
+      "file": "circle-maps.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "coupled-phase-oscillators",
+      "title": "Coupled phase oscillators and Kuramoto networks",
+      "mechanism": "Let oscillator phases influence one another through a coupling function.",
+      "mapping": "Assign parts to oscillators and trigger symbolic gestures at phase crossings, allowing alignment and divergence.",
+      "example": "Two close frequencies may align more strongly as coupling increases; extract event times through crossing detection, not display frames.",
+      "controls": "Energy controls orchestration; emotion can select coupling profiles; a master transport still governs delivery and phrase boundaries.",
+      "failure": "Synchronization can reduce interesting variation. Numerical steps can miss crossings, and abrupt coupling changes can disrupt phrasing.",
+      "experiment": "Measure phase coherence and event timing separately; compare emergent alignment with an authored polymetric cycle.",
+      "sources": [
+        "kuramoto"
+      ],
+      "id": "T055",
+      "file": "coupled-phase-oscillators.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "iterated-function-systems",
+      "title": "Iterated function systems",
+      "mechanism": "Repeatedly apply selected transformations to a state, often using contractive maps.",
+      "mapping": "Generate self-related register and duration preferences, then resolve them into a finite phrase vocabulary.",
+      "example": "Select between two bounded affine transformations and map the resulting coordinate to one of seven degree regions.",
+      "controls": "Emotion selects transform weights; energy controls attack budgets; iteration depth and musical sampling are independent.",
+      "failure": "Visually self-similar structure may disappear after quantization. Non-contractive choices can diverge.",
+      "experiment": "Compare latent and realized recurrence, verify boundedness and audition against simple recursive motif transformations.",
+      "sources": [
+        "botany"
+      ],
+      "id": "T056",
+      "file": "iterated-function-systems.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "recursive-rhythm-subdivision",
+      "title": "Recursive and fractal rhythmic subdivision",
+      "mechanism": "Recursively replace a time span with smaller spans according to a fixed rule.",
+      "mapping": "Create nested phrase rhythm while preserving total duration and selected anchor positions.",
+      "example": "Split four beats into [2,2], then split only the second half into [1,1], giving onset spans [0,2,3].",
+      "controls": "Energy chooses maximum depth or eligible subdivisions; emotion chooses long-short organization; section position protects cadential space.",
+      "failure": "Deep recursion produces unplayably short gates and too many attacks. Fractal terminology does not itself explain a listening benefit.",
+      "experiment": "Check duration conservation and minimum event spacing; compare nested and flat patterns at equal density.",
+      "sources": [
+        "lsys"
+      ],
+      "id": "T057",
+      "file": "recursive-rhythm-subdivision.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "thue-morse",
+      "title": "Thue–Morse substitution sequences",
+      "mechanism": "Apply 0->01 and 1->10 repeatedly to construct a structured nonperiodic infinite word.",
+      "mapping": "Use symbols to alternate two motif realizations, accent families or instrumental roles.",
+      "example": "The first eight symbols are 01101001. Map 0 to an original cell and 1 to a bounded inversion.",
+      "controls": "Energy changes realization, not the sequence identity; emotion chooses the paired cells; group symbols into explicit phrases.",
+      "failure": "Nonperiodicity is not randomness or endless novelty. A two-cell vocabulary can remain perceptually repetitive.",
+      "experiment": "Verify prefixes and compare heard motif development against ordinary alternating and random binary schedules.",
+      "sources": [
+        "botany"
+      ],
+      "id": "T058",
+      "file": "thue-morse.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "fibonacci-words",
+      "title": "Fibonacci words and unequal recurrence",
+      "mechanism": "Use the substitution A->AB, B->A to create a structured symbol sequence.",
+      "mapping": "Assign A and B different rhythmic cells or section gestures to vary return intervals.",
+      "example": "A, AB, ABA and ABAAB contain lengths 1,2,3,5. If cell durations differ, symbol count is not elapsed musical time.",
+      "controls": "Energy selects cell realizations; emotion selects compatible colours; the conductor groups the sequence into phrase-sized windows.",
+      "failure": "Irrational limiting proportions do not ensure a useful groove. Window boundaries can cut cells or obscure cadences.",
+      "experiment": "Check symbol and duration growth separately and compare proportional versus metric grouping.",
+      "sources": [
+        "lsys"
+      ],
+      "id": "T059",
+      "file": "fibonacci-words.md"
+    },
+    {
+      "group": "Dynamical systems and mathematical sequences",
+      "slug": "de-bruijn-sequences",
+      "title": "De Bruijn sequences",
+      "mechanism": "Arrange symbols cyclically so every word of a fixed length occurs once.",
+      "mapping": "Systematically audition local rhythmic or motif-choice combinations without independent random repetition.",
+      "example": "The cyclic binary sequence 00010111 contains each three-bit word once when wraparound windows are included.",
+      "controls": "Energy maps symbols to different activity levels; emotion selects material; cycle traversal is grouped into musically planned sections.",
+      "failure": "Exhaustive local coverage is not convincing long-range form. Mapping collisions can make distinct words sound identical.",
+      "experiment": "Verify unique cyclic windows and compare perceived variety with a matched-length random sequence.",
+      "sources": [
+        "euler"
+      ],
+      "id": "T060",
+      "file": "de-bruijn-sequences.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "boids",
+      "title": "Boids and flocking",
+      "mechanism": "Combine local separation, alignment and cohesion rules for moving agents.",
+      "mapping": "Map agent height to register and group alignment to shared rhythmic direction; keep each agent assigned to a bounded musical role.",
+      "example": "Three agents converge in contour direction while separation prevents them all selecting the same register slot.",
+      "controls": "Emotion chooses attraction targets and phrase vocabulary; energy controls accepted attacks; time schedules sampled states.",
+      "failure": "Physical closeness is not harmonic consonance. Mapping every simulation step to an attack creates overwhelming output.",
+      "experiment": "Compare collective motion features with actual interval and rhythm relationships at a fixed polyphony cap.",
+      "sources": [
+        "boids"
+      ],
+      "id": "T061",
+      "file": "boids.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "ant-colony-optimization",
+      "title": "Ant-colony-inspired phrase routing",
+      "mechanism": "Reinforce promising graph routes with a decaying shared trail.",
+      "mapping": "Let candidate agents explore chord or motif routes, depositing bounded preference on routes meeting phrase goals.",
+      "example": "A route resolving a cadence receives trail reinforcement, while evaporation prevents its edges from permanently dominating.",
+      "controls": "Energy changes rhythm realization; emotion changes route desirability; exploration runs before phrase commitment.",
+      "failure": "Early random advantages can become lock-in. Trail strength is an internal search signal, not a judgment of artistic value.",
+      "experiment": "Compare route diversity and target attainment with ordinary weighted graph walks at the same evaluation budget.",
+      "sources": [
+        "ant",
+        "paths"
+      ],
+      "id": "T062",
+      "file": "ant-colony-optimization.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "particle-swarm-optimization",
+      "title": "Particle swarm optimization",
+      "mechanism": "Move candidate parameter vectors using their own and neighbours’ best-known positions.",
+      "mapping": "Search a continuous composer-control space offline, with a fixed symbolic decoder and several evaluation scenarios.",
+      "example": "Particles tune contour bias and rhythmic contrast; the best parameter vector still needs to be decoded and auditioned.",
+      "controls": "Emotion and energy define target scenarios; time supplies a search deadline, not the particle integration rate for playback.",
+      "failure": "Particles can collapse prematurely or exploit a noisy evaluator. PSO is optimization, distinct from performing a flock simulation.",
+      "experiment": "Compare with equal-budget random and differential-evolution searches using held-out seeds.",
+      "sources": [
+        "pso"
+      ],
+      "id": "T063",
+      "file": "particle-swarm-optimization.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "predator-prey",
+      "title": "Predator–prey musical populations",
+      "mechanism": "Couple populations through growth, resource use and predation or an analogous interaction.",
+      "mapping": "Map slowly changing populations to competing phrase textures, not individual animal-like notes.",
+      "example": "A rising ornament population increases activity while a suppressor population later thins it, producing an experimental long arc.",
+      "controls": "Energy caps realized notes independently of population; emotion changes mapping; freeze the simulation-to-bar time scale.",
+      "failure": "Extinction, runaway growth and numerical oscillation may dominate. An ecological metaphor does not supply harmonic meaning.",
+      "experiment": "Check positivity and boundedness, then compare the activity arc with a deliberately authored rise-and-fall envelope.",
+      "sources": [
+        "wolves"
+      ],
+      "id": "T064",
+      "file": "predator-prey.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "replicator-dynamics",
+      "title": "Replicator dynamics for strategy mixtures",
+      "mechanism": "Change strategy proportions according to relative payoff in a population.",
+      "mapping": "Let repeat, answer and transform strategies compete for future phrase selection using explicit, inspectable payoffs.",
+      "example": "A strategy gaining share is used more often, but one strategy is sampled per opportunity rather than all firing concurrently.",
+      "controls": "Emotion changes payoff hypotheses; energy constrains realization; update proportions only after committed phrases.",
+      "failure": "Payoff design can erase diversity or generate cycles. A successful strategy can mean metric exploitation rather than musical quality.",
+      "experiment": "Track population shares, cycles and listener judgments; compare against a fixed authored strategy mixture.",
+      "sources": [
+        "mesa"
+      ],
+      "id": "T065",
+      "file": "replicator-dynamics.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "sandpile-avalanche",
+      "title": "Sandpile and avalanche processes",
+      "mechanism": "Accumulate local quantities and redistribute them when a specified threshold is exceeded.",
+      "mapping": "Use avalanches as candidates for short fills or orchestrational cascades, bounded by a phrase event budget.",
+      "example": "Adding one token can trigger several topplings; map only a summarized avalanche size and path to one bounded musical gesture.",
+      "controls": "Energy sets a fill budget; emotion chooses gesture vocabulary; defer cascades to eligible musical slots.",
+      "failure": "Unbounded avalanches can exceed deadlines. A finite simulation does not automatically establish self-organized criticality.",
+      "experiment": "Record size and duration distributions; compare against directly sampled fill sizes before claiming a benefit.",
+      "sources": [
+        "sandpile"
+      ],
+      "id": "T066",
+      "file": "sandpile-avalanche.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "diffusion-limited-aggregation",
+      "title": "Diffusion-limited aggregation",
+      "mechanism": "Random walkers attach to an existing cluster under a declared contact rule.",
+      "mapping": "Use a growing graph as a motif genealogy or source of branching phrase routes.",
+      "example": "Each attached branch inherits its parent motif and adds one small transformation; sample one path for a phrase.",
+      "controls": "Emotion selects transformation vocabulary; energy sets active branches; growth steps are separate from beat time.",
+      "failure": "Large trees cost memory and can have unhelpful long branches. Growth geometry does not by itself create audible genealogy.",
+      "experiment": "Verify bounded growth and provenance, then test whether listeners recognize parent-child motif relationships.",
+      "sources": [
+        "dla"
+      ],
+      "id": "T067",
+      "file": "diffusion-limited-aggregation.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "excitable-networks",
+      "title": "Excitable and refractory networks",
+      "mechanism": "Nodes activate in response to input and then pass through a refractory interval.",
+      "mapping": "Model a network of answering motifs where one gesture can invite another after a known delay.",
+      "example": "A lead activation enables an answer node; its refractory period prevents immediate repeated answers.",
+      "controls": "Energy controls transmission eligibility; emotion selects response cells; delays are expressed in musical beats.",
+      "failure": "Feedback loops can create uncontrolled activity. A refractory rule needs clear units and deterministic update order.",
+      "experiment": "Test pulse propagation, loop termination and density bounds, then compare with a simple call-and-response state machine.",
+      "sources": [
+        "gen",
+        "mesa"
+      ],
+      "id": "T068",
+      "file": "excitable-networks.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "stigmergic-memory",
+      "title": "Stigmergic shared musical memory",
+      "mechanism": "Coordinate agents indirectly through persistent, decaying changes in a shared environment.",
+      "mapping": "Let performed motifs leave tagged traces that bias later answers without a direct instruction from the original part.",
+      "example": "A phrase leaves an interval-contour trace for four bars; an answering part may recall it, while decay prevents endless reuse.",
+      "controls": "Emotion affects trace compatibility; energy controls answer opportunities; trace age uses committed musical time.",
+      "failure": "Shared traces can become an echo chamber. Speculative generation must not leave traces for music never performed.",
+      "experiment": "Track provenance and expiry; compare indirect recall with explicit conductor-selected memory.",
+      "sources": [
+        "mesa"
+      ],
+      "id": "T069",
+      "file": "stigmergic-memory.md"
+    },
+    {
+      "group": "Agents swarms and ecosystems",
+      "slug": "musical-auctions",
+      "title": "Resource auctions and role allocation",
+      "mechanism": "Allocate limited resources among agents through an explicit bidding or priority mechanism.",
+      "mapping": "Treat foreground slots, register space and attack budgets as resources requested by musical parts.",
+      "example": "The lead requests a phrase-ending slot and outranks an optional counterline; an aged unserved answer can gain priority later.",
+      "controls": "Energy sets total resources; emotion affects eligible roles; allocation happens at phrase boundaries.",
+      "failure": "Poor priority rules can starve a part or always privilege dense generators. Winning is not an aesthetic proof.",
+      "experiment": "Inspect allocations, starvation and heard foreground clarity against an independent-part baseline.",
+      "sources": [
+        "mesa",
+        "cp"
+      ],
+      "id": "T070",
+      "file": "musical-auctions.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "constraint-programming",
+      "title": "Constraint programming for musical events",
+      "mechanism": "Assign variables from finite domains subject to explicit relationships.",
+      "mapping": "Solve a short phrase with pitch ranges, chord anchors, duration totals and voice-separation requirements.",
+      "example": "Choose four degree anchors from finite sets while requiring the last anchor to reach the cadence target and total rhythm to fill the bar.",
+      "controls": "Emotion adds soft preferences; energy sets hard event budgets; solve before the phrase deadline.",
+      "failure": "An infeasible model needs a diagnostic and fallback. Hard-coding one style’s rules can exclude intended expression.",
+      "experiment": "Check solutions and infeasible examples; record which preferences were relaxed and compare with musician annotations.",
+      "sources": [
+        "cp"
+      ],
+      "id": "T071",
+      "file": "constraint-programming.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "sat-and-smt",
+      "title": "SAT/SMT-style symbolic composition",
+      "mechanism": "Express decisions through logical variables and satisfiability constraints.",
+      "mapping": "Represent whether a note occupies a slot, whether a voice crosses another and whether a prepared dissonance resolves.",
+      "example": "An implication can state that an accented non-chord event requires a suitable resolution in one of the next two slots.",
+      "controls": "Emotion selects permitted obligations; energy bounds active slots; use a finite phrase horizon.",
+      "failure": "Boolean encoding can become large. A satisfiable assignment can remain musically dull; SMT and SAT solver contracts differ.",
+      "experiment": "Use hand-checkable miniature scores and contrast satisfiability with independent musical-quality evaluation.",
+      "sources": [
+        "cp"
+      ],
+      "id": "T072",
+      "file": "sat-and-smt.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "mixed-integer-programming",
+      "title": "Mixed-integer and integer programming",
+      "mechanism": "Optimize an objective under linear relationships with integer and optionally continuous decision variables.",
+      "mapping": "Allocate onsets, parts and register placements to meet a global density plan and minimize declared movement costs.",
+      "example": "Binary slot variables sum to six optional attacks; continuous variables can describe some performance preferences in a suitable solver.",
+      "controls": "Energy sets occupancy bounds; emotion changes objective weights; time supplies a deadline and feasible fallback.",
+      "failure": "Some musical rules need nonlinear or expanded encodings. CP-SAT specifically uses integer terms, not arbitrary continuous variables.",
+      "experiment": "Compare feasible incumbents at a fixed time budget and inspect objective components rather than claiming global musical optimality.",
+      "sources": [
+        "cp"
+      ],
+      "id": "T073",
+      "file": "mixed-integer-programming.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "dynamic-programming",
+      "title": "Dynamic programming for phrase paths",
+      "mechanism": "Reuse solutions to subproblems when the retained state contains all information needed for future costs.",
+      "mapping": "Select a sequence of voicings or melodic anchors with minimal declared transition cost over a fixed harmonic route.",
+      "example": "For each chord and candidate voicing, store the best predecessor cost and reconstruct the final path.",
+      "controls": "Emotion supplies candidate vocabulary; energy constrains texture; phrase length fixes the planning horizon.",
+      "failure": "A state omitting unresolved suspensions or motif position loses necessary history. More state increases cost.",
+      "experiment": "Compare with exhaustive search on tiny cases and audition against greedy nearest-voicing selection.",
+      "sources": [
+        "paths"
+      ],
+      "id": "T074",
+      "file": "dynamic-programming.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "shortest-path-composition",
+      "title": "Shortest-path composition",
+      "mechanism": "Find a route through a weighted graph under the selected algorithm’s cost assumptions.",
+      "mapping": "Treat harmonic or pitch-set states as vertices and admissible transitions as edges.",
+      "example": "Find a route from an opening chord to a cadence through two intermediate layers, with edges weighted by voice movement.",
+      "controls": "Emotion selects graph regions; energy alters realization; time-layered vertices can enforce exact phrase length.",
+      "failure": "The cheapest route can be repetitive or too short. Negative costs and cycles require the correct algorithm and interpretation.",
+      "experiment": "Verify route length and edge costs; compare the resulting music with alternative near-optimal routes.",
+      "sources": [
+        "paths"
+      ],
+      "id": "T075",
+      "file": "shortest-path-composition.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "beam-search",
+      "title": "Beam search",
+      "mechanism": "Keep only a bounded number of promising partial sequences at each expansion step.",
+      "mapping": "Build phrases with several possible future continuations while limiting computation.",
+      "example": "A width-four beam retains four partial motifs after each note; score obligations and remaining cadence reachability before pruning.",
+      "controls": "Emotion changes candidate ranking; energy limits expansions; commit only complete validated phrases.",
+      "failure": "An early scoring bias can eliminate the best long-term route. Beam width does not remove a flawed objective.",
+      "experiment": "Compare widths and equal-budget random proposals, tracking both completion failures and musical preferences.",
+      "sources": [
+        "transformer",
+        "paths"
+      ],
+      "id": "T076",
+      "file": "beam-search.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "a-star-search",
+      "title": "A-star musical planning",
+      "mechanism": "Prioritize partial routes using accumulated cost plus an estimate of remaining cost.",
+      "mapping": "Plan a harmonic or motif-transformation route to a known future target.",
+      "example": "A lower bound on remaining pitch movement can guide a constrained approach to a cadence; artistic surprise is evaluated separately.",
+      "controls": "Emotion chooses the target region; energy constrains realization; search has a bounded musical horizon.",
+      "failure": "Optimality claims require the relevant heuristic conditions. A perceptual cost estimate may be useful but not admissible.",
+      "experiment": "Check tiny graph solutions against exhaustive search and distinguish formal path optimality from perceived musical success.",
+      "sources": [
+        "paths"
+      ],
+      "id": "T077",
+      "file": "a-star-search.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "monte-carlo-tree-search",
+      "title": "Monte Carlo tree search",
+      "mechanism": "Allocate exploration to a decision tree through repeated selection, expansion and evaluated simulations.",
+      "mapping": "Explore a few phrase-level conductor actions by simulating their symbolic consequences over a short horizon.",
+      "example": "Compare hold, thin and introduce-answer actions through bounded rollouts; none of the hypothetical notes is sent to output.",
+      "controls": "Emotion supplies goals; energy sets budgets; planning time limits rollouts before the commitment boundary.",
+      "failure": "A poor rollout evaluator can prefer harmful actions. Simulated future audience satisfaction is not an observed reward.",
+      "experiment": "Compare with exhaustive shallow action evaluation and count decision quality per computation budget.",
+      "sources": [
+        "rl"
+      ],
+      "id": "T078",
+      "file": "monte-carlo-tree-search.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "wave-function-collapse",
+      "title": "Wave Function Collapse for musical tiles",
+      "mechanism": "Propagate local compatibility constraints while selecting among remaining tile possibilities.",
+      "mapping": "Use authored rhythmic/harmonic cells as tiles with entry, exit and voice-leading compatibility labels.",
+      "example": "A dominant-entry tile can only follow a compatible predecessor; pin a cadence tile at the final slot and propagate constraints backward.",
+      "controls": "Emotion adjusts tile weights; energy selects permitted densities; time fixes finite phrase length.",
+      "failure": "Local compatibility does not guarantee long-form development. Contradictions need bounded backtracking or restart; this is not quantum computation.",
+      "experiment": "Test impossible tile sets, completion rate and phrase joins against simple compatible random concatenation.",
+      "sources": [
+        "wfc"
+      ],
+      "id": "T079",
+      "file": "wave-function-collapse.md"
+    },
+    {
+      "group": "Constraints graph search and optimization",
+      "slug": "simulated-annealing",
+      "title": "Simulated annealing",
+      "mechanism": "Explore local changes while sometimes accepting worse objective values according to a cooling schedule.",
+      "mapping": "Refine a valid phrase by changing optional pitches, durations or voicings while protecting anchor obligations.",
+      "example": "Try shifting one inner note by a degree; evaluate movement and contour costs before deciding whether to keep the change.",
+      "controls": "Emotion defines the profile objective; energy remains a bound; cooling runs before playback or on future phrases.",
+      "failure": "A low objective is not artistic quality. Discrete moves and a continuous library implementation require a deliberate adapter.",
+      "experiment": "Compare with greedy local search at equal proposal counts and preserve the best feasible phrase as fallback.",
+      "sources": [
+        "anneal",
+        "morpheus"
+      ],
+      "id": "T080",
+      "file": "simulated-annealing.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "euclidean-rhythms",
+      "title": "Euclidean and maximally even rhythms",
+      "mechanism": "Distribute a selected number of onsets as evenly as possible around a cycle.",
+      "mapping": "Build rhythm scaffolds, then separately choose rotation, accents, pitches and gates.",
+      "example": "Three attacks in eight slots can be x..x..x.; rotating by one slot gives .x..x..x, changing metric placement without changing count.",
+      "controls": "Energy selects onset count; emotion selects accent and contour; preserve phrase-scale changes above the rhythmic cycle.",
+      "failure": "Binary evenness does not reproduce a cultural performance practice. Different rotation conventions can cause unexpected alignment.",
+      "experiment": "Check attack counts and cyclic gaps, then compare accents and rotations at constant density.",
+      "sources": [
+        "euclid"
+      ],
+      "id": "T081",
+      "file": "euclidean-rhythms.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "polymetric-composition",
+      "title": "Polymetric loop composition",
+      "mechanism": "Run musical cycles with different lengths against a common time unit.",
+      "mapping": "Use a short bass loop and a differently sized answer cycle to create changing alignments.",
+      "example": "Loops of three and four equal-duration steps realign after twelve steps. Their harmony still needs coordination.",
+      "controls": "Energy changes orchestration rather than cycle lengths by default; emotion selects material; time tracks the supercycle.",
+      "failure": "Independent loops can conflict at harmonic changes. Least common multiple in steps is not valid when step durations differ.",
+      "experiment": "Verify alignment and chord-boundary handling; compare changing alignments with an authored twelve-step arrangement.",
+      "sources": [
+        "tidal"
+      ],
+      "id": "T082",
+      "file": "polymetric-composition.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "phase-shifting",
+      "title": "Discrete and gradual phase shifting",
+      "mechanism": "Change the relative temporal offset between related repeating material.",
+      "mapping": "Keep a motif recognizable while a second realization moves through new attack relationships.",
+      "example": "Delay one four-beat motif by half a beat while preserving the master pulse; distinguish this discrete shift from a temporary tempo difference.",
+      "controls": "Energy controls entrances and accents; emotion selects interval treatment; phase movement occurs over an explicit duration.",
+      "failure": "Crossings can overcrowd the arrangement. Tempo-based drift needs a reunification and note-release policy.",
+      "experiment": "Compare fixed-offset, stepped and gradual shifts at matched material and assess recognizable return.",
+      "sources": [
+        "tidal",
+        "kuramoto"
+      ],
+      "id": "T083",
+      "file": "phase-shifting.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "isorhythmic-sequences",
+      "title": "Isorhythmic pitch-duration pairing",
+      "mechanism": "Repeat pitch and duration sequences independently so their pairings evolve.",
+      "mapping": "Use a short pitch cell with a differently sized duration cell to generate limited-material variation.",
+      "example": "A three-pitch sequence and five-duration sequence repeat their pairings after fifteen events, not necessarily fifteen beats.",
+      "controls": "Energy selects duration vocabulary; emotion changes pitch-cell realization; section time decides where to interrupt or resolve.",
+      "failure": "Event-count recurrence can cross bar boundaries. Changing durations changes the elapsed supercycle length.",
+      "experiment": "Calculate both pair recurrence and actual summed duration; compare phrase endings with and without conductor intervention.",
+      "sources": [
+        "ziffers"
+      ],
+      "id": "T084",
+      "file": "isorhythmic-sequences.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "canon-imitation",
+      "title": "Canon and delayed imitation",
+      "mechanism": "Derive another voice by a specified time delay and pitch or contour transformation.",
+      "mapping": "Compose a source phrase with its answer in mind, retaining explicit provenance between voices.",
+      "example": "A theme delayed two beats and transposed a diatonic fifth becomes an answer only if range and current harmony permit it.",
+      "controls": "Energy controls active imitation voices; emotion chooses transformations; delay stays in declared beat units.",
+      "failure": "A delayed line can collide with a later chord or obscure the source. Heavy repair should be labelled free imitation.",
+      "experiment": "Check exact derivation before repair and evaluate voice independence and intelligibility after repair.",
+      "sources": [
+        "tonal",
+        "ziffers"
+      ],
+      "id": "T085",
+      "file": "canon-imitation.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "serial-row-transformations",
+      "title": "Serial rows and ordered pitch-class operations",
+      "mechanism": "Transform an ordered pitch-class collection through transposition, inversion, retrograde and related operations.",
+      "mapping": "Use a row as pitch-order structure while rhythm, register and articulation remain separate decisions.",
+      "example": "For row fragment [0,1,4], inversion around zero gives [0,11,8] modulo twelve. Assign register afterward.",
+      "controls": "Emotion selects realization preferences, not an automatic tonal label; energy controls rhythm; phrase time controls row segmentation.",
+      "failure": "Ordered coverage does not supply convincing form. Tonal chord-fit metrics can misjudge the intended profile.",
+      "experiment": "Verify row transformations and repeated pitch classes, then compare heard relatedness under controlled rhythm and register.",
+      "sources": [
+        "ziffers"
+      ],
+      "id": "T086",
+      "file": "serial-row-transformations.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "motif-permutation",
+      "title": "Constrained motif permutations",
+      "mechanism": "Reorder motif events or cells while preserving declared invariants.",
+      "mapping": "Keep first and last anchors and permute only interior cells, retaining a phrase’s entry and ending contracts.",
+      "example": "For four cells A,B,C,D, preserve A and D and compare A-B-C-D with A-C-B-D.",
+      "controls": "Energy selects ornament realization; emotion weights admissible permutations; change only at a planned phrase boundary.",
+      "failure": "A permutation can destroy contour or prepared dissonance. Distinct symbolic orders can sound nearly identical.",
+      "experiment": "Verify preserved anchors and obligations, then assess listener recognition and join quality.",
+      "sources": [
+        "ziffers"
+      ],
+      "id": "T087",
+      "file": "motif-permutation.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "tintinnabuli-inspired-pairing",
+      "title": "Tintinnabuli-inspired constrained pairing",
+      "mechanism": "Pair a melodic line with pitches selected by a declared triadic relationship.",
+      "mapping": "Create an experimental companion voice that chooses the nearest eligible triad tone above or below each melodic pitch.",
+      "example": "Against C-major triad classes, D4 can pair with E4 under an above-nearest rule or C4 under a below-nearest rule.",
+      "controls": "Emotion chooses the companion rule and triad vocabulary; energy controls entry and gate; harmony remains explicit.",
+      "failure": "This simplified proposal does not reproduce a composer’s full practice. Constant pairing can create excessive homorhythm.",
+      "experiment": "Check directional selection and compare paired voices with independent counterlines at equal polyphony.",
+      "sources": [
+        "part",
+        "tonal"
+      ],
+      "id": "T088",
+      "file": "tintinnabuli-inspired-pairing.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "voice-leading-optimization",
+      "title": "Voice-leading and voicing optimization",
+      "mechanism": "Select pitch placements for chord identities according to movement, range, spacing and voice relationships.",
+      "mapping": "Enumerate bounded voicing candidates and optimize across several chords, preserving a separate bass function.",
+      "example": "C-E-G to C-E-A retains two common tones, unlike moving every voice to a high root-position A-minor chord.",
+      "controls": "Energy alters spacing or role count; emotion changes eligible harmonies; time fixes chord-change positions.",
+      "failure": "Minimum movement can become static. Independent sorting can hide voice identity or crossing.",
+      "experiment": "Compare greedy and phrase-level paths and inspect individual voices as well as summed movement.",
+      "sources": [
+        "tonal",
+        "morpheus"
+      ],
+      "id": "T089",
+      "file": "voice-leading-optimization.md"
+    },
+    {
+      "group": "Musical transformations and combinatorics",
+      "slug": "transformational-harmony-graphs",
+      "title": "Transformational harmony graphs",
+      "mechanism": "Represent chords as nodes connected by specified musical transformations.",
+      "mapping": "Traverse a graph of common-tone-preserving or profile-defined chord relationships while preserving a thematic rhythm.",
+      "example": "Move C major to A minor through a two-common-tone relation; label the relationship rather than assuming every edge has equal expressive meaning.",
+      "controls": "Emotion biases relationship families; energy affects texture; section time sets targets and return obligations.",
+      "failure": "Graph adjacency is not a universal harmonic grammar. A route can wander indefinitely without a planned return.",
+      "experiment": "Check edge definitions and audible transitions, comparing constrained routes with functional-harmony plans.",
+      "sources": [
+        "tonal",
+        "paths"
+      ],
+      "id": "T090",
+      "file": "transformational-harmony-graphs.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "recurrent-note-models",
+      "title": "Recurrent and LSTM note models",
+      "mechanism": "Generate a sequence using a recurrent hidden state conditioned on previous events.",
+      "mapping": "Propose a melody continuation from recent resolved notes and the planned harmony, with a procedural fallback.",
+      "example": "A worker receives two bars of symbolic context and proposes the next phrase; reject it if its plan revision is obsolete.",
+      "controls": "Emotion conditions or reranks proposals only where supported; energy is verified in the resolved score; generation has a deadline.",
+      "failure": "Local continuation can lose form and identity. A sampling temperature is not a calibrated emotion or energy control.",
+      "experiment": "Compare held-out continuation, motif retention, actual control following and deadline failures separately.",
+      "sources": [
+        "rnn"
+      ],
+      "id": "T091",
+      "file": "recurrent-note-models.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "symbolic-transformers",
+      "title": "Symbolic Transformer models",
+      "mechanism": "Use attention over tokenized musical context to predict or reconstruct symbolic events.",
+      "mapping": "Propose longer motif-aware continuations while explicit plans retain section, harmony and ending authority.",
+      "example": "Represent time, pitch and duration explicitly; preserve a theme reference in context and validate the decoded note lifecycle.",
+      "controls": "Emotion needs actual conditioning or constrained reranking; energy is measured from the output; plan ahead outside delivery callbacks.",
+      "failure": "Context length does not guarantee controllability or long-form quality. Tokenization can lose voice or meter information.",
+      "experiment": "Compare early and late excerpts, locked-region preservation and training-fragment similarity under documented data provenance.",
+      "sources": [
+        "transformer"
+      ],
+      "id": "T092",
+      "file": "symbolic-transformers.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "music-vae",
+      "title": "Variational autoencoders for motifs",
+      "mechanism": "Encode musical sequences into a latent distribution and decode samples or interpolated latent values.",
+      "mapping": "Create related phrase variants for an authored theme, keeping selected rhythm or cadence anchors protected.",
+      "example": "Decode several points between two motif latents and inspect whether pitch contour changes smoothly after symbolic quantization.",
+      "controls": "Emotion may choose calibrated latent regions; energy stays an explicit checked descriptor; transitions occur at phrase boundaries.",
+      "failure": "Latent distance is not perceptual distance. Interpolation may lose motif identity or violate locked material.",
+      "experiment": "Evaluate reconstruction, variation and controllability separately; compare with simple rule-based motif transforms.",
+      "sources": [
+        "vae"
+      ],
+      "id": "T093",
+      "file": "music-vae.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "symbolic-gans",
+      "title": "Generative adversarial models for symbolic tracks",
+      "mechanism": "Train a generator against a discriminator over symbolic representations such as multitrack piano rolls.",
+      "mapping": "Propose coordinated short textures or accompaniment candidates, then convert them into explicit note events.",
+      "example": "A five-track piano roll needs a defined rule for repeated adjacent cells, sustained gates and overlapping voices before MIDI delivery.",
+      "controls": "Emotion and energy require supported conditions or post-selection; time reserves a bounded candidate window.",
+      "failure": "Piano-roll plausibility is not complete song form. Mode collapse can hide behind attractive selected demos.",
+      "experiment": "Inspect diversity, note decoding and interpart relationships alongside listener ratings and rejected examples.",
+      "sources": [
+        "gan"
+      ],
+      "id": "T094",
+      "file": "symbolic-gans.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "symbolic-diffusion",
+      "title": "Diffusion models for symbolic scores",
+      "mechanism": "Iteratively denoise a symbolic or latent representation, potentially conditioned on higher-level structure.",
+      "mapping": "Generate future phrases under form, harmony and texture conditions while preserving fixed regions.",
+      "example": "Freeze an authored theme and ask for accompaniment in the remaining symbolic regions; verify that fixed material is unchanged.",
+      "controls": "Emotion enters only through supported controls; energy is checked after decoding; iteration count must meet the planning deadline.",
+      "failure": "Guidance strength is not musical correctness. Denoising may be too slow for an immediate response.",
+      "experiment": "Measure edit locality, structure following and generation delay against the procedural baseline.",
+      "sources": [
+        "diffusion"
+      ],
+      "id": "T095",
+      "file": "symbolic-diffusion.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "retrieval-and-recombination",
+      "title": "Retrieval-augmented symbolic composition",
+      "mechanism": "Retrieve relevant source fragments and transform or combine them for the current context.",
+      "mapping": "Search a provenance-preserving library by contour, rhythm, harmonic role and user-approved tags.",
+      "example": "Retrieve an answering cell with the same ending function, transpose it deliberately and trim only within its declared duration contract.",
+      "controls": "Emotion biases tags as hypotheses; energy filters density; time chooses eligible phrase roles and recency.",
+      "failure": "Similarity is not quality, and retrieval can repeat sources too literally. Source licensing and attribution remain separate questions.",
+      "experiment": "Compare retrieval relevance, join quality and motif repetition against authored random cell selection.",
+      "sources": [
+        "oracle",
+        "idyom"
+      ],
+      "id": "T096",
+      "file": "retrieval-and-recombination.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "reservoir-computing",
+      "title": "Reservoir and echo-state sequence models",
+      "mechanism": "Use a recurrent dynamical reservoir with a trained readout to model temporal relationships.",
+      "mapping": "Predict a small set of motif or rhythmic states rather than directly controlling every MIDI byte.",
+      "example": "Feed recent interval/rhythm features into a fixed reservoir and train a bounded next-cell classifier, then let the conductor choose among proposals.",
+      "controls": "Emotion and energy can be explicit input features with tested coverage; state resets occur at declared boundaries.",
+      "failure": "Reservoir stability and memory depend on design. Unseen control combinations may produce unreliable predictions.",
+      "experiment": "Compare with a small Markov baseline and test resets, long rests and held-out control trajectories.",
+      "sources": [
+        "reservoir"
+      ],
+      "id": "T097",
+      "file": "reservoir-computing.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "reinforcement-learning",
+      "title": "Reinforcement learning for conductor actions",
+      "mechanism": "Learn an action policy through transitions and rewards in a specified environment.",
+      "mapping": "Choose bounded actions such as hold, answer, thin or return; keep event validation and transport ownership deterministic.",
+      "example": "Reward valid cadence completion and explicit task success while retaining separate penalties for excessive density and ignored human input.",
+      "controls": "The wheel is part of the observed context; energy sets action limits; training simulation is separate from live execution.",
+      "failure": "Reward hacking and simulator mismatch can dominate. A handcrafted reward is not measured listener satisfaction.",
+      "experiment": "Evaluate on unseen scenarios and compare with an authored conductor under matched material and compute budgets.",
+      "sources": [
+        "rl"
+      ],
+      "id": "T098",
+      "file": "reinforcement-learning.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "contextual-bandits",
+      "title": "Contextual bandits for musical action choice",
+      "mechanism": "Choose among actions using contextual features and feedback while balancing exploration and exploitation.",
+      "mapping": "Select an optional transformation from a small library when explicit, appropriately labelled feedback exists.",
+      "example": "Given section, emotion and energy, choose repeat or answer; observe a later explicit accept/reject label without assuming a full future-state model.",
+      "controls": "Emotion and energy define context; limit exploration during performance; maintain uncertainty when feedback is sparse.",
+      "failure": "Delayed attribution and changing preferences violate simple assumptions. Random exploration can interrupt a phrase.",
+      "experiment": "Compare with fixed action weights and inspect feedback attribution, uncertainty and user control.",
+      "sources": [
+        "rl",
+        "stats"
+      ],
+      "id": "T099",
+      "file": "contextual-bandits.md"
+    },
+    {
+      "group": "Learned symbolic models and adaptation",
+      "slug": "bar-conditioned-style-transfer",
+      "title": "Bar-conditioned symbolic style transfer",
+      "mechanism": "Change declared attributes of existing music while retaining selected content relationships.",
+      "mapping": "Use a theme as content and alter rhythmic intensity or polyphony in future bars, with explicit protected regions.",
+      "example": "Retain lead anchors while requesting a less dense accompaniment; compare decoded activity rather than trusting the requested attribute label.",
+      "controls": "Energy controls validated density attributes; emotion requires an independently calibrated mapping; bar timing defines edit scope.",
+      "failure": "Style, emotion and density are not interchangeable. Transfer can rewrite identity-bearing details.",
+      "experiment": "Check content preservation and control response separately, comparing learned transfer with explicit symbolic edits.",
+      "sources": [
+        "muse"
+      ],
+      "id": "T100",
+      "file": "bar-conditioned-style-transfer.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "pitch-set-bitmasks",
+      "title": "Pitch-set bitmasks and exhaustive collection spaces",
+      "mechanism": "Represent twelve pitch-class memberships in a twelve-bit integer with an explicit bit convention.",
+      "mapping": "Use complete set membership as a pitch vocabulary, including silent and sparse sets rather than only named scales.",
+      "example": "With bit 0 representing C relative to the root, C-major is mask 2741 and the chromatic collection is 4095. Mask 0 is silence.",
+      "controls": "Emotion chooses authored collection preferences; energy controls rhythm independently; change membership at planned boundaries.",
+      "failure": "A collection is not a cultural practice or a chord progression. Different bit orders can silently change every result.",
+      "experiment": "Round-trip all 4096 masks and compare named anchors with expected pitch classes.",
+      "sources": [
+        "ring",
+        "harmon"
+      ],
+      "id": "T101",
+      "file": "pitch-set-bitmasks.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "set-class-orbits",
+      "title": "Transposition/inversion set-class orbits",
+      "mechanism": "Group collections under declared transposition and optional inversion equivalence.",
+      "mapping": "Browse related harmonic materials without confusing a class representative with its particular voiced realization.",
+      "example": "Compute the minimum bitmask across twelve transpositions and their inversions. That numeric representative is not a Forte catalogue number.",
+      "controls": "Emotion selects candidates within and between classes; energy stays separate; harmonic time controls how a representative is realized.",
+      "failure": "Equivalent collections can have different musical functions, roots and spellings. Collapsing them loses important context.",
+      "experiment": "Enumerate class counts with and without inversion, including the empty set as a separately declared case.",
+      "sources": [
+        "harmon",
+        "ring"
+      ],
+      "id": "T102",
+      "file": "set-class-orbits.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "modal-rebasing",
+      "title": "Modal rebasing and collection rotation",
+      "mechanism": "Rebase a selected collection on one of its included pitches while retaining explicit tonic treatment.",
+      "mapping": "Create related pitch vocabularies for contrast or return, preserving degree-aware motif information where possible.",
+      "example": "Rebase C-major on D to obtain offsets [0,2,3,5,7,9,10]. A mode-zero convention can instead preserve an unrooted custom mask unchanged.",
+      "controls": "Emotion biases allowed modes as a profile hypothesis; energy controls arrangement; announce effective harmonic boundaries.",
+      "failure": "Rotation and transposition are different operations. A scale’s interval pattern alone does not reproduce a modal performance practice.",
+      "experiment": "Verify cardinality, membership and rebasing identities, then test motif preservation after mode changes.",
+      "sources": [
+        "harmon",
+        "ring"
+      ],
+      "id": "T103",
+      "file": "modal-rebasing.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "complementary-pitch-sets",
+      "title": "Complementary pitch collections",
+      "mechanism": "Select the pitch classes absent from a collection within a declared universe.",
+      "mapping": "Use a complement as contrast material or a mutually exclusive answering vocabulary, then plan the join back.",
+      "example": "Within twelve classes, complement is mask XOR 4095. A seven-note collection has a five-note complement.",
+      "controls": "Emotion chooses when contrast is appropriate; energy remains independent; time reserves a route back to the theme.",
+      "failure": "The complement can sharply change harmonic meaning. It is not an automatic emotional opposite or consonant partner.",
+      "experiment": "Check double complementation and cardinality sums; audition prepared versus abrupt complement transitions.",
+      "sources": [
+        "harmon",
+        "ring"
+      ],
+      "id": "T104",
+      "file": "complementary-pitch-sets.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "affine-pitch-transformations",
+      "title": "Affine pitch-class transformations",
+      "mechanism": "Map pitch class p to a*p+b modulo twelve, with invertibility depending on the multiplier.",
+      "mapping": "Explore related interval structures through reflection, transposition and coprime multiplication.",
+      "example": "Multipliers 5 and 7 permute all twelve classes; multiplying by 2 can merge classes and reduce cardinality.",
+      "controls": "Emotion selects permitted transforms; energy does not require a multiplier change; apply at a phrase boundary.",
+      "failure": "An invertible mathematical mapping need not preserve tonal function or recognizable melody.",
+      "experiment": "Verify cardinality for coprime multipliers and explicitly test collisions for non-coprime ones.",
+      "sources": [
+        "harmon"
+      ],
+      "id": "T105",
+      "file": "affine-pitch-transformations.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "interval-vectors-autocorrelation",
+      "title": "Interval-class vectors and cyclic autocorrelation",
+      "mechanism": "Count pitch-pair relationships independently of a particular voicing.",
+      "mapping": "Use interval content as one descriptor when retrieving or contrasting collections, alongside root and functional information.",
+      "example": "C-E-G has interval-class counts [0,0,1,1,1,0]. A tritone contributes one unordered pair, not two.",
+      "controls": "Emotion mapping may hypothesize interval preferences; energy remains rhythmic; section time constrains retrieval and transition.",
+      "failure": "Different collections can share interval content. An interval vector does not measure tension, pleasantness or cultural meaning directly.",
+      "experiment": "Check that vector entries sum to n*(n-1)/2 and compare equal-vector collections without claiming they are identical.",
+      "sources": [
+        "harmon",
+        "ring"
+      ],
+      "id": "T106",
+      "file": "interval-vectors-autocorrelation.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "pitch-set-proximity-graphs",
+      "title": "Pitch-set proximity and mutation graphs",
+      "mechanism": "Connect collections through declared small membership changes or transformation relationships.",
+      "mapping": "Plan harmonic colour paths by adding, removing or moving one pitch class at a time.",
+      "example": "A Hamming-distance-one edge toggles one membership bit; preserve essential theme anchors while searching toward a target set.",
+      "controls": "Emotion selects target vocabularies; energy controls part activity; harmonic time determines when a set change becomes active.",
+      "failure": "Small bit distance is not necessarily small perceptual distance. Changing a tonic-defining pitch can be structurally large.",
+      "experiment": "Compare mathematical distance, common tones and listener judgments of continuity with explicit voicing control.",
+      "sources": [
+        "harmon",
+        "paths"
+      ],
+      "id": "T107",
+      "file": "pitch-set-proximity-graphs.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "musical-torus-walks",
+      "title": "Musical torus and lattice walks",
+      "mechanism": "Use a periodic pitch lattice whose coordinates map to pitch classes through an explicit formula.",
+      "mapping": "Move a symbolic cursor through chromatic and fourths-related directions, mapping the path into a melody or harmonic route.",
+      "example": "For p=(x+5*y) mod 12, moving right adds one semitone and moving up adds five. A 12-by-12 torus repeats each pitch class twelve times.",
+      "controls": "Emotion selects path tendencies; energy affects rhythm and accents; time controls path sampling and phrase targets.",
+      "failure": "There are not 144 independent pitch classes. Visual closeness and pitch-class equality encode different relationships.",
+      "experiment": "Check seams, directional steps and repeated labels; compare lattice paths with direct interval sequences.",
+      "sources": [
+        "harmon"
+      ],
+      "id": "T108",
+      "file": "musical-torus-walks.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "symmetry-limited-transposition",
+      "title": "Symmetry and limited transposition",
+      "mechanism": "Identify transformations that preserve a collection, producing repeated equivalent images.",
+      "mapping": "Use symmetric collections as stable colour fields or as contrasting material with fewer distinct transpositions.",
+      "example": "The whole-tone set [0,2,4,6,8,10] is invariant under transposition by two semitones and has two distinct transpositions.",
+      "controls": "Emotion chooses a tested colour palette; energy changes realization; section time determines how symmetry is broken or restored.",
+      "failure": "Symmetry can reduce tonal orientation, but does not imply a particular feeling. Different voicings can obscure the same invariance.",
+      "experiment": "Enumerate stabilizing transforms and distinct images, then listen to rooted and unrooted realizations.",
+      "sources": [
+        "ring",
+        "harmon"
+      ],
+      "id": "T109",
+      "file": "symmetry-limited-transposition.md"
+    },
+    {
+      "group": "Pitch-set geometry and harmonic spaces",
+      "slug": "directional-pitch-quantization",
+      "title": "Directional pitch-set quantization",
+      "mechanism": "Map an incoming or proposed pitch to an allowed pitch under nearest, upward, downward or membership-filter rules.",
+      "mapping": "Use quantization as a constrained decoder for stochastic/agent proposals, preserving original release addresses.",
+      "example": "Between C4 and D4, C-sharp4 maps to C4 under nearest-with-downward-tie policy; upward maps to D4. Empty membership suppresses attacks.",
+      "controls": "Emotion selects the vocabulary; energy controls event selection; edits affect future attacks, while active notes keep their recorded targets.",
+      "failure": "Nearest snapping can collapse several source notes onto one pitch and erase ornaments or independent voices.",
+      "experiment": "Test full MIDI boundaries, ties, collisions and releases after a collection edit, then inspect preserved melodic contour.",
+      "sources": [
+        "harmon"
+      ],
+      "id": "T110",
+      "file": "directional-pitch-quantization.md"
+    },
+    {
+      "group": "Interactive performance and adaptive timing",
+      "slug": "gesture-score-chronologies",
+      "title": "Gesture-to-score chronologies",
+      "mechanism": "Separate an ordered score event sequence from the times at which a performer requests its next event.",
+      "mapping": "Let a person control when an authored or generated onset occurs while the composer supplies pitch and phrase context.",
+      "example": "One accepted gesture requests one simultaneous note/chord group; holding the input does not authorize an entire melody.",
+      "controls": "The wheel changes future material; energy changes realization; gesture time and arrangement time remain separate records.",
+      "failure": "Early queues, late recovery and long rests require explicit policies. This is not equivalent to a phrase-launch button.",
+      "experiment": "Use missed-note and late-entry scenarios and ask participants to predict the musical consequence of a gesture.",
+      "sources": [
+        "ensemble"
+      ],
+      "id": "T111",
+      "file": "gesture-score-chronologies.md"
+    },
+    {
+      "group": "Interactive performance and adaptive timing",
+      "slug": "target-synchronization",
+      "title": "Landmark and target synchronization",
+      "mechanism": "Coordinate local musical progress toward declared future positions rather than conflating tempo and position.",
+      "mapping": "Let an answering phrase recover toward a future bar or cadence without bursting through all missed attacks.",
+      "example": "After a delay, choose a reachable next phrase boundary; any duration compression is explicitly bounded and labelled as a heuristic.",
+      "controls": "Emotion changes material, not recovery authority; energy remains separate; time supplies the landmark and confidence.",
+      "failure": "Aggressive correction can destroy phrasing. A local heuristic is not an implementation of Antescofo’s full synchronization algorithms.",
+      "experiment": "Measure phase, tempo and perceived control independently during late input, skipped material and role changes.",
+      "sources": [
+        "antescofo",
+        "ensemble"
+      ],
+      "id": "T112",
+      "file": "target-synchronization.md"
+    },
+    {
+      "group": "Interactive performance and adaptive timing",
+      "slug": "phase-preserving-launch",
+      "title": "Phase-preserving groove launch",
+      "mechanism": "Start a repeating pattern on a shared phase rather than resetting its cycle to the arrival of the request.",
+      "mapping": "Queue bass or percussion entrances at compatible boundaries while preserving the current arrangement position.",
+      "example": "A request halfway through a bar can enter next bar at phase zero; a legato join needs a separately declared policy.",
+      "controls": "Energy can request layer entrances; emotion changes eligible cells; timing authority decides the effective boundary.",
+      "failure": "Beat alignment is not harmonic validity or identical song position. Queued and sounding states must be distinct.",
+      "experiment": "Check late joins, odd meters and section changes; compare expected versus actual entry boundaries.",
+      "sources": [
+        "link",
+        "ensemble"
+      ],
+      "id": "T113",
+      "file": "phase-preserving-launch.md"
+    },
+    {
+      "group": "Interactive performance and adaptive timing",
+      "slug": "score-aware-tempo-following",
+      "title": "Score-aware human tempo following",
+      "mechanism": "Estimate performed tempo using elapsed score beats associated with observed gestures.",
+      "mapping": "Follow a designated performer or confidence-weighted group while preserving a separate phase-correction policy.",
+      "example": "Two gestures two score beats apart and one second apart imply 120 BPM; they do not imply 60 BPM merely because there were two taps.",
+      "controls": "Emotion and energy may affect intended expression but must not override clock ownership; time estimates carry confidence.",
+      "failure": "Rests, repeated presses and recovery jumps corrupt naive inter-tap estimation. Dense parts should not dominate by event count alone.",
+      "experiment": "Compare fixed clock, designated conductor and bounded group following, measuring drift, oscillation and enjoyment.",
+      "sources": [
+        "ensemble",
+        "antescofo"
+      ],
+      "id": "T114",
+      "file": "score-aware-tempo-following.md"
+    },
+    {
+      "group": "Interactive performance and adaptive timing",
+      "slug": "mixed-initiative-arrangement",
+      "title": "Mixed-initiative musical arrangement",
+      "mechanism": "Distribute proposal, acceptance and execution authority between a person and an automated system.",
+      "mapping": "Allow autonomous bounded development while the person controls targets, locks, recall and rejection.",
+      "example": "The system proposes a counterline; Conduct mode may enter it at a declared phrase boundary, while Suggest mode waits for acceptance.",
+      "controls": "The wheel supplies expressive intention; energy supplies activity; future commitment boundaries make intervention predictable.",
+      "failure": "More automation can obscure the person’s contribution. Explanations must follow actual committed actions rather than invented narratives.",
+      "experiment": "Compare authority modes at equal material budgets and measure perceived control, contribution recognition and musical preference separately.",
+      "sources": [
+        "ensemble",
+        "rl"
+      ],
+      "id": "T115",
+      "file": "mixed-initiative-arrangement.md"
+    }
+  ]
+}

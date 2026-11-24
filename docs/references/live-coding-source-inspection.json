@@ -1,0 +1,571 @@
+{
+  "reviewDate": "2026-11-24",
+  "scope": "Readme and selected implementation excerpts only; no runtime tests",
+  "repositories": [
+    {
+      "repository": "hundredrabbits/Orca",
+      "sha": "223e45c84db14cb77fb1d31e29a3ad94652080d8",
+      "branch": "main",
+      "licenseMetadata": "MIT",
+      "candidateFiles": [
+        "desktop/sources/scripts/clock.js",
+        "desktop/sources/scripts/core/operator.js"
+      ],
+      "inspected": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/hundredrabbits/Orca/blob/223e45c84db14cb77fb1d31e29a3ad94652080d8/README.md",
+          "bytes": 13302,
+          "observations": [
+            {
+              "line": 5,
+              "text": "Orca is an [esoteric programming language](https://en.wikipedia.org/wiki/Esoteric_programming_language) designed to quickly create procedural sequencers, in which every l"
+            },
+            {
+              "line": 7,
+              "text": "This application **is not a synthesizer, but a livecoding environment** capable of sending MIDI, OSC & UDP to your audio/visual interfaces, like Ableton, Renoise, VCV Rac"
+            },
+            {
+              "line": 12,
+              "text": "- Use [in your browser](https://hundredrabbits.github.io/Orca/), requires **webMidi**."
+            },
+            {
+              "line": 36,
+              "text": "- `C` **clock**(*rate* mod): Outputs modulo of frame."
+            },
+            {
+              "line": 37,
+              "text": "- `D` **delay**(*rate* mod): Bangs on modulo of frame."
+            },
+            {
+              "line": 38,
+              "text": "- `E` **east**: Moves eastward, or bangs."
+            },
+            {
+              "line": 39,
+              "text": "- `F` **if**(*a* b): Bangs if inputs are equal."
+            },
+            {
+              "line": 47,
+              "text": "- `N` **north**: Moves Northward, or bangs."
+            },
+            {
+              "line": 52,
+              "text": "- `S` **south**: Moves southward, or bangs."
+            },
+            {
+              "line": 54,
+              "text": "- `U` **uclid**(*step* max): Bangs on Euclidean rhythm."
+            }
+          ]
+        },
+        {
+          "path": "desktop/sources/scripts/clock.js",
+          "url": "https://github.com/hundredrabbits/Orca/blob/223e45c84db14cb77fb1d31e29a3ad94652080d8/desktop/sources/scripts/clock.js",
+          "bytes": 4821,
+          "observations": [
+            {
+              "line": 5,
+              "text": "function Clock (client) {"
+            },
+            {
+              "line": 10,
+              "text": "this.timer = null"
+            },
+            {
+              "line": 16,
+              "text": "const memory = parseInt(window.localStorage.getItem('bpm'))"
+            },
+            {
+              "line": 32,
+              "text": "this.setSpeed = (value, target = null, setTimer = false) => {"
+            },
+            {
+              "line": 33,
+              "text": "if (this.speed.value === value && this.speed.target === target && this.timer) { return }"
+            },
+            {
+              "line": 36,
+              "text": "if (setTimer === true) { this.setTimer(this.speed.value) }"
+            },
+            {
+              "line": 59,
+              "text": "this.play = function (msg = false, midiStart = false) {"
+            },
+            {
+              "line": 60,
+              "text": "console.log('Clock', 'Play', msg, midiStart)"
+            },
+            {
+              "line": 61,
+              "text": "if (this.isPaused === false && !midiStart) { return }"
+            },
+            {
+              "line": 64,
+              "text": "console.warn('Clock', 'External Midi control')"
+            }
+          ]
+        },
+        {
+          "path": "desktop/sources/scripts/core/operator.js",
+          "url": "https://github.com/hundredrabbits/Orca/blob/223e45c84db14cb77fb1d31e29a3ad94652080d8/desktop/sources/scripts/core/operator.js",
+          "bytes": 3711,
+          "observations": [
+            {
+              "line": 33,
+              "text": "this.bang = function (b) {"
+            },
+            {
+              "line": 34,
+              "text": "if (!this.ports.output) { console.warn(this.name, 'Trying to bang, but no port'); return }"
+            },
+            {
+              "line": 46,
+              "text": "if (port.bang) { continue }"
+            },
+            {
+              "line": 51,
+              "text": "if (this.ports.output.bang === true) {"
+            },
+            {
+              "line": 52,
+              "text": "this.bang(payload)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "amiika/ziffers",
+      "sha": "7895c9b770b8648d8540eb48540774c303724321",
+      "branch": "master",
+      "licenseMetadata": "MIT",
+      "candidateFiles": [
+        "ziffers.rb"
+      ],
+      "inspected": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/amiika/ziffers/blob/7895c9b770b8648d8540eb48540774c303724321/README.md",
+          "bytes": 4064,
+          "observations": [
+            {
+              "line": 4,
+              "text": "Ziffers is a generative numbered musical notation (aka. Ziffersystem) and a live code golfing framework that makes composing melodies and rhythms easier and faster in [So"
+            },
+            {
+              "line": 52,
+              "text": "# Escape/eval: {10 11} {1.2 2.43} {3+1*2}"
+            }
+          ]
+        },
+        {
+          "path": "ziffers.rb",
+          "url": "https://github.com/amiika/ziffers/blob/7895c9b770b8648d8540eb48540774c303724321/ziffers.rb",
+          "bytes": 64871,
+          "observations": [
+            {
+              "line": 4,
+              "text": "require_relative \"./lib/parser/zgrammar.rb\""
+            },
+            {
+              "line": 16,
+              "text": "load \"~/ziffers/lib/parser/zgrammar.rb\""
+            },
+            {
+              "line": 33,
+              "text": "@@slice_opts_keys = [:delta_midi, :scale, :key, :synth, :amp, :beats, :duration, :port, :channel, :vel, :vel_f, :chord_channel, :parse_cc, :cc, :value, :mapping, :midi, :"
+            },
+            {
+              "line": 101,
+              "text": "def tweak(func,start,finish,duration,time=nil)"
+            },
+            {
+              "line": 102,
+              "text": "(1..duration).map { |t| time ? $easing[func].call(t.to_f,start.to_f,(finish-start).to_f, duration.to_f,time.to_f) : $easing[func].call(t.to_f,start.to_f,(finish-start).to"
+            },
+            {
+              "line": 119,
+              "text": "zparse(n,opts,shared)"
+            },
+            {
+              "line": 123,
+              "text": "# TODO: Document n.times.collect { zgen \"(1,[4,6,7])\" } etc. or remove?"
+            },
+            {
+              "line": 127,
+              "text": "n = parse_generative n, opts, defaults"
+            },
+            {
+              "line": 132,
+              "text": "def zparse(n, opts={}, shared={})"
+            },
+            {
+              "line": 158,
+              "text": "parsed_use = defaults.select{|k,v| k.length<2 and /[[:upper:]]/.match(k)} # Parse capital letters from the opts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "munshkr/flok",
+      "sha": "b60608df84e52f03691db18d7048fc501312bbde",
+      "branch": "main",
+      "licenseMetadata": "GPL-3.0",
+      "candidateFiles": [
+        "packages/cm-eval/lib/eval.ts",
+        "packages/cm-eval/lib/flashField.ts",
+        "packages/cm-eval/lib/index.ts",
+        "packages/cm-eval/lib/remoteEvalFlash.ts"
+      ],
+      "inspected": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/munshkr/flok/blob/b60608df84e52f03691db18d7048fc501312bbde/README.md",
+          "bytes": 501,
+          "observations": []
+        },
+        {
+          "path": "packages/cm-eval/lib/eval.ts",
+          "url": "https://github.com/munshkr/flok/blob/b60608df84e52f03691db18d7048fc501312bbde/packages/cm-eval/lib/eval.ts",
+          "bytes": 3525,
+          "observations": [
+            {
+              "line": 6,
+              "text": "interface EvalBlock {"
+            },
+            {
+              "line": 12,
+              "text": "export function getSelection(state: EditorState): EvalBlock {"
+            },
+            {
+              "line": 21,
+              "text": "export function getLine(state: EditorState): EvalBlock {"
+            },
+            {
+              "line": 30,
+              "text": "export function getBlock(state: EditorState): EvalBlock {"
+            },
+            {
+              "line": 53,
+              "text": "export const evaluateBlockOrSelection = ("
+            },
+            {
+              "line": 63,
+              "text": "doc.evaluate(text, { from, to });"
+            },
+            {
+              "line": 67,
+              "text": "doc.evaluate(text, { from, to }, web ? \"web\" : \"default\");"
+            },
+            {
+              "line": 71,
+              "text": "export const evaluateLine = ("
+            },
+            {
+              "line": 79,
+              "text": "doc.evaluate(text, { from, to }, web ? \"web\" : \"default\");"
+            },
+            {
+              "line": 82,
+              "text": "export const evaluateDocument = ("
+            }
+          ]
+        },
+        {
+          "path": "packages/cm-eval/lib/flashField.ts",
+          "url": "https://github.com/munshkr/flok/blob/b60608df84e52f03691db18d7048fc501312bbde/packages/cm-eval/lib/flashField.ts",
+          "bytes": 1538,
+          "observations": [
+            {
+              "line": 6,
+              "text": "export const setFlash = StateEffect.define<FlashRange | null>();"
+            },
+            {
+              "line": 17,
+              "text": "export const flash = ("
+            },
+            {
+              "line": 21,
+              "text": "timeout: number = 150,"
+            },
+            {
+              "line": 25,
+              "text": "setTimeout(() => {"
+            },
+            {
+              "line": 27,
+              "text": "}, timeout);"
+            },
+            {
+              "line": 30,
+              "text": "export const flashField = (style: object = defaultStyle) =>"
+            },
+            {
+              "line": 59,
+              "text": "export default flashField;"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "dktr0/estuary",
+      "sha": "717ca84b53d296519154e2aa5e60405aba071262",
+      "branch": "dev",
+      "licenseMetadata": "GPL-3.0",
+      "candidateFiles": [
+        "client/src/Estuary/Types/AsyncValue.hs",
+        "client/src/Estuary/Types/ParamPatternable.hs",
+        "client/src/Estuary/Widgets/GeneralPattern.hs",
+        "client/src/Estuary/Widgets/SpecificPattern.hs",
+        "client/src/Estuary/Widgets/TransformedPattern.hs"
+      ],
+      "inspected": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/dktr0/estuary/blob/717ca84b53d296519154e2aa5e60405aba071262/README.md",
+          "bytes": 1711,
+          "observations": [
+            {
+              "line": 11,
+              "text": "You don't need to install or build anything to start using Estuary - you can just point your web browser to an existing deployment of it, and start making things! At the "
+            }
+          ]
+        },
+        {
+          "path": "client/src/Estuary/Types/AsyncValue.hs",
+          "url": "https://github.com/dktr0/estuary/blob/717ca84b53d296519154e2aa5e60405aba071262/client/src/Estuary/Types/AsyncValue.hs",
+          "bytes": 1121,
+          "observations": [
+            {
+              "line": 1,
+              "text": "module Estuary.Types.AsyncValue"
+            },
+            {
+              "line": 3,
+              "text": "AsyncValue,"
+            },
+            {
+              "line": 4,
+              "text": "asyncValue,"
+            },
+            {
+              "line": 12,
+              "text": "import Control.Concurrent.Async"
+            },
+            {
+              "line": 14,
+              "text": "data AsyncValueState a = NotLoaded (IO a) | Loading (Async a) | Loaded a"
+            },
+            {
+              "line": 16,
+              "text": "data AsyncValue a = AsyncValue (IORef (AsyncValueState a))"
+            },
+            {
+              "line": 18,
+              "text": "asyncValue :: IO a -> IO (AsyncValue a)"
+            },
+            {
+              "line": 19,
+              "text": "asyncValue io = AsyncValue <$> newIORef (NotLoaded io)"
+            },
+            {
+              "line": 21,
+              "text": "blocking :: AsyncValue a -> IO a"
+            },
+            {
+              "line": 22,
+              "text": "blocking (AsyncValue ioref) = do"
+            }
+          ]
+        },
+        {
+          "path": "client/src/Estuary/Types/ParamPatternable.hs",
+          "url": "https://github.com/dktr0/estuary/blob/717ca84b53d296519154e2aa5e60405aba071262/client/src/Estuary/Types/ParamPatternable.hs",
+          "bytes": 7766,
+          "observations": [
+            {
+              "line": 1,
+              "text": "module Estuary.Types.ParamPatternable where"
+            },
+            {
+              "line": 8,
+              "text": "-- Estuary's Tidal-esque notations to an actual Tidal ParamPattern representation."
+            },
+            {
+              "line": 10,
+              "text": "class ParamPatternable a where"
+            },
+            {
+              "line": 11,
+              "text": "toParamPattern :: a -> Tidal.ControlPattern"
+            },
+            {
+              "line": 15,
+              "text": "-- Tidal's main pattern parser comes in two flavours currently,"
+            },
+            {
+              "line": 16,
+              "text": "-- a flavour that returns an Either ParseError a, and a flavour that"
+            },
+            {
+              "line": 17,
+              "text": "-- throws exceptions. When using this parser in the service of our"
+            },
+            {
+              "line": 19,
+              "text": "parseBP' :: (Tidal.Enumerable a, Tidal.Parseable a) => String -> Tidal.Pattern a"
+            },
+            {
+              "line": 20,
+              "text": "parseBP' = (either (const Tidal.silence)  id). Tidal.parseBP"
+            },
+            {
+              "line": 22,
+              "text": "instance ParamPatternable SpecificPattern where"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "Bubobubobubobubo/topos",
+      "sha": "aa2eb0651d68df2df081397f3a41a58cc15c0d4a",
+      "branch": "main",
+      "licenseMetadata": "GPL-3.0",
+      "candidateFiles": [
+        "src/Clock.ts",
+        "src/Evaluator.ts",
+        "src/TransportNode.js",
+        "src/TransportProcessor.js",
+        "src/classes/ZPlayer.ts",
+        "src/documentation/more/synchronisation.ts",
+        "src/documentation/patterns/chaining.ts",
+        "src/documentation/patterns/functions.ts",
+        "src/documentation/patterns/generators.ts",
+        "src/documentation/patterns/lfos.ts",
+        "src/documentation/patterns/patterns.ts",
+        "src/documentation/patterns/probabilities.ts",
+        "src/documentation/patterns/variables.ts",
+        "src/documentation/patterns/ziffers/ziffers_algorithmic.ts"
+      ],
+      "inspected": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/Bubobubobubobubo/topos/blob/aa2eb0651d68df2df081397f3a41a58cc15c0d4a/README.md",
+          "bytes": 5035,
+          "observations": [
+            {
+              "line": 22,
+              "text": "Topos is a web based live coding environment designed to be installation-free, independant and fun. Topos is loosely based on the [Monome Teletype](https://monome.org/doc"
+            },
+            {
+              "line": 29,
+              "text": "- it can be used to sequence other MIDI and OSC devices (the latter using a **NodeJS** script)"
+            },
+            {
+              "line": 90,
+              "text": "Note that a Docker version of Topos is automatically generated everytime a commit is done on the `main` branch."
+            }
+          ]
+        },
+        {
+          "path": "src/Clock.ts",
+          "url": "https://github.com/Bubobubobubobubo/topos/blob/aa2eb0651d68df2df081397f3a41a58cc15c0d4a/src/Clock.ts",
+          "bytes": 7328,
+          "observations": [
+            {
+              "line": 6,
+              "text": "export interface TimePosition {"
+            },
+            {
+              "line": 8,
+              "text": "*  A position in time."
+            },
+            {
+              "line": 19,
+              "text": "export class Clock {"
+            },
+            {
+              "line": 21,
+              "text": "* The Clock Class is responsible for keeping track of the current time."
+            },
+            {
+              "line": 22,
+              "text": "* It is also responsible for starting and stopping the Clock TransportNode."
+            },
+            {
+              "line": 28,
+              "text": "* @param time_signature - The time signature"
+            },
+            {
+              "line": 29,
+              "text": "* @param time_position - The current time position"
+            },
+            {
+              "line": 32,
+              "text": "* @param running - Is the clock running?"
+            },
+            {
+              "line": 33,
+              "text": "* @param lastPauseTime - The last time the clock was paused"
+            },
+            {
+              "line": 34,
+              "text": "* @param lastPlayPressTime - The last time the clock was started"
+            }
+          ]
+        },
+        {
+          "path": "src/Evaluator.ts",
+          "url": "https://github.com/Bubobubobubobubo/topos/blob/aa2eb0651d68df2df081397f3a41a58cc15c0d4a/src/Evaluator.ts",
+          "bytes": 4092,
+          "observations": [
+            {
+              "line": 4,
+              "text": "const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));"
+            },
+            {
+              "line": 9,
+              "text": "const tryCatchWrapper = async ("
+            },
+            {
+              "line": 48,
+              "text": "export const tryEvaluate = async ("
+            },
+            {
+              "line": 51,
+              "text": "timeout = 5000,"
+            },
+            {
+              "line": 54,
+              "text": "* Tries to evaluate the provided code within a specified timeout period."
+            },
+            {
+              "line": 55,
+              "text": "* Increments the evaluation count of the code file."
+            },
+            {
+              "line": 56,
+              "text": "* If the code is valid, updates the committed code and adds the evaluated function to the cache."
+            },
+            {
+              "line": 57,
+              "text": "* If the code is invalid, retries the evaluation."
+            },
+            {
+              "line": 59,
+              "text": "* @param code - The code file to evaluate."
+            },
+            {
+              "line": 60,
+              "text": "* @param timeout - The timeout period in milliseconds (default: 5000)."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

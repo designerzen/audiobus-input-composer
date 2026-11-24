@@ -1,0 +1,128 @@
+{
+  "reviewDate": "2026-11-24",
+  "pathBase": "parent directory of this repository",
+  "sources": [
+    {
+      "path": "inclusive-city/docs/generative-music-research.md",
+      "bytes": 14128,
+      "sha256": "e2749b22d5bdc2f2f47778d0a370933f0783fe2a929127868f65365b85b35114"
+    },
+    {
+      "path": "inclusive-city/docs/research-and-evaluation.md",
+      "bytes": 11198,
+      "sha256": "53ce3aa69744dfdbd1b19296f76736e4657935a3c18be2691a3964e78f440436"
+    },
+    {
+      "path": "inclusive-city/source/src/audio/README.md",
+      "bytes": 12332,
+      "sha256": "007dde79e0f9ebbad0170a0868902d0d42e8321a6703677b03900a25ea527138"
+    },
+    {
+      "path": "inclusive-city/source/src/audio/MAGENTA.md",
+      "bytes": 6103,
+      "sha256": "c0746513cd25d28932483494f3996a54223fb96ea7571c0de67762c3ab5c143b"
+    },
+    {
+      "path": "inclusive-city/source/src/art/MusicForm.ts",
+      "bytes": 2040,
+      "sha256": "1a9707d728a02ac75ab84296ff32a00edaebb950bf378db83d69ae887abfe2fb"
+    },
+    {
+      "path": "inclusive-city/source/src/art/MusicMemory.ts",
+      "bytes": 5622,
+      "sha256": "4b4e64375888d8131dfa93cdcba9f717f19621ba221443354e99400b4ae6269f"
+    },
+    {
+      "path": "inclusive-city/source/src/art/JourneyMusicComposer.ts",
+      "bytes": 34644,
+      "sha256": "51ca595bdc79b1a9d3ad83f11ba1cf6c0ae3299a18964fff9a5535d2c64ee615"
+    },
+    {
+      "path": "inclusive-city/source/src/audio/robotMusicalIdentity.ts",
+      "bytes": 3569,
+      "sha256": "bba03a986afd8abf911ecea18403389b337fab17c9ee98a803fb419e4713d4bd"
+    },
+    {
+      "path": "inclusive-city/source/src/audio/robotHarmony.ts",
+      "bytes": 926,
+      "sha256": "99ccf2b822fb8ad974270261f973f7bfafd0cf0f74c521ecd9d6bc4ffcc23260"
+    },
+    {
+      "path": "inclusive-city/docs/references/generative-music-tutorial.bib",
+      "bytes": 142683,
+      "sha256": "d67250eb81266001f950bcabbde1f4644d0a52a7db346ba292d4559ced5bcb14"
+    },
+    {
+      "path": "inclusive-city/docs/references/realization-oriented-ai.bib",
+      "bytes": 2555,
+      "sha256": "6f4cc490de404926bb453ea2927cd5cebfdc0d3b6528861190a28f80bdd5de95"
+    },
+    {
+      "path": "audiobus-protocol/README.md",
+      "bytes": 17172,
+      "sha256": "fb13f3699daabfdcc6bfdb26f08db4f30eb2afe987a0145deac91e644135f2bf"
+    },
+    {
+      "path": "audiobus-protocol/docs/protocol.md",
+      "bytes": 17191,
+      "sha256": "0bbcb848b7c2c36d0b84e2666f34a4ed07f7daad266ffef07851b31c98890532"
+    },
+    {
+      "path": "audiobus-protocol/src/index.ts",
+      "bytes": 23901,
+      "sha256": "a17452eab7efa92ae2a53a0a0c0bde2d6f68ca2c15ddc84ff8d25c16f3e3755a"
+    },
+    {
+      "path": "audiobus/README.md",
+      "bytes": 4925,
+      "sha256": "a69fa117084619f95674a00d01759ad98292fa5d35465f1f8263117fafcf272b"
+    },
+    {
+      "path": "inclusive-city/docs/references/anstis2026creative-memory-engine.pdf",
+      "bytes": 190069,
+      "sha256": "39e4967d8935b4b98ca598febce0e4fa4c4a392ab705154be222b32e435b614d",
+      "inspection": "All three pages extracted and read; first page rendered and visually inspected"
+    },
+    {
+      "path": "photosynth.lol/AGENTS.md",
+      "bytes": 1730,
+      "sha256": "5e6c4830916ae47ce8fa73a1ffcb8bbe2fe177a06d7e3a5fff2ccbc061c875a2"
+    },
+    {
+      "path": "photosynth.lol/source/webcomponent/star-controller/README.md",
+      "bytes": 11440,
+      "sha256": "c01d66ecf7ee1e6960e4d038804d2954ab7812ab76c3d9ded011975bffc71efc"
+    },
+    {
+      "path": "photosynth.lol/source/webcomponent/star-controller/star-controller.ts",
+      "bytes": 21173,
+      "sha256": "d3b21687bffeaa2517d5e2979906fb8fc39827fe4dc48399edec784ef470f919"
+    },
+    {
+      "path": "photosynth.lol/source/webcomponent/star-controller/star-controller.svg",
+      "bytes": 14728,
+      "sha256": "7ac56fe8ae76bbe1b3e43339ea190c3977e87bd6f7ab6f81429b349e4923238e"
+    },
+    {
+      "path": "photosynth.lol/source/webcomponent/star-controller/star-controller.css",
+      "bytes": 3830,
+      "sha256": "32d1f580f07beb20250ee1988e3354ed14950790d00883ededd2a9526a223ef8"
+    },
+    {
+      "path": "photosynth.lol/source/webcomponent/star-controller/star-settings.ts",
+      "bytes": 7836,
+      "sha256": "85e223320e759ef6c6df7fa3cb9b4f573dae2275d78811b6c641ef20d9ad13b6"
+    },
+    {
+      "path": "photosynth.lol/src/components/sections/SectionPlutchik.astro",
+      "bytes": 423,
+      "sha256": "4b748e21eb0613068ac51bb417a239abf23042314d1f26a3248ec98bbe543f26"
+    },
+    {
+      "path": "photosynth.lol/source/assets/scripts/components/pulchik-synth.js",
+      "bytes": 772,
+      "sha256": "df96a0394b79fba11e00a3aa98eff60b1b6ff74122d9c83b0c0e92de92fa5766"
+    }
+  ],
+  "referencedPdfPresent": true
+}
