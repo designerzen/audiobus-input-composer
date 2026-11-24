@@ -25,7 +25,7 @@ export class ComposerSession {
   private readonly clock: () => number;
   private readonly transport: Transport;
   private record: PerformanceRecord = { schemaVersion: 1, generatorVersion: '0.1.0', phrases: [], dispatches: [], truncated: false };
-  constructor(options: Partial<ComposerOptions>, output: MidiOutputAdapter, private hooks: SessionHooks = {}, transportOptions: Pick<TransportOptions, 'now' | 'maxGapMs'> = {}) {
+  constructor(options: Partial<ComposerOptions>, output: MidiOutputAdapter, private hooks: SessionHooks = {}, transportOptions: Pick<TransportOptions, 'now' | 'maxGapMs' | 'clock'> = {}) {
     this.target = normalizeOptions(options); this.appliedValue = normalizeOptions(this.target);
     this.clock = transportOptions.now ?? (() => performance.now());
     this.transport = new Transport(output, {
@@ -36,11 +36,15 @@ export class ComposerSession {
       },
       onStop: reason => { if (reason !== 'ended') this.hooks.onStop?.(reason); },
       onError: error => this.hooks.onError?.(error),
-      onEnd: () => { if (this.finishing) this.hooks.onStop?.('finished'); else { this.index++; this.begin(); } },
+      onEnd: () => { if (this.finishing) this.hooks.onStop?.('finished'); else { this.index++; this.begin(this.transport.overshoot); } },
     });
   }
   get running(): boolean { return this.transport.running; }
   get beat(): number { return this.transport.beat; }
+  /** True when a host advances the session with advance() instead of the session timing itself. */
+  get hosted(): boolean { return this.transport.hosted; }
+  /** Host clock: move on by quarter-note beats of the host's transport. Phrases chain without drift. */
+  advance(beats: number): void { this.transport.advance(beats); }
   get applied(): ComposerOptions { return normalizeOptions(this.appliedValue); }
   get options(): ComposerOptions { return normalizeOptions(this.target); }
   get recording(): PerformanceRecord { return structuredClone(this.record); }
@@ -55,11 +59,11 @@ export class ComposerSession {
   finish(): void { if (this.running) this.finishing = true; }
   stop(reason = 'stopped'): void { this.finishing = true; this.transport.stop(reason); }
   setOutput(output: MidiOutputAdapter): void { this.finishing = true; this.transport.setOutput(output); }
-  private begin(): void {
+  private begin(carry = 0): void {
     this.appliedValue = normalizeOptions(this.target);
     const phrase = composePhrase(this.appliedValue, this.index, 0);
     if (this.record.phrases.length < 1024) this.record.phrases.push({ phrase, time: this.clock() }); else this.record.truncated = true;
-    this.transport.start({ events: phrase.events, length: phrase.length, options: this.appliedValue });
+    this.transport.start({ events: phrase.events, length: phrase.length, options: this.appliedValue }, true, carry);
     if (this.transport.running) this.hooks.onPhrase?.(phrase);
   }
 }

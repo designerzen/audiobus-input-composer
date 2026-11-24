@@ -145,3 +145,19 @@ test('MIDI export is a parseable track with balanced gates and an explicit tempo
   }
   assert(tempo && end); assert.equal(active.size, 0); assert.equal(tick, score.length * 480);
 });
+
+test('a host clock drives phrases from beats, never from wall time, and chains without drift', () => {
+  const sent = [], phrases = [];
+  const session = new ComposerSession({ seed: 'host', emotion: 'joy', tempo: 60 }, { send: bytes => sent.push([...bytes]) }, { onPhrase: p => phrases.push(p) }, { clock: 'host' });
+  session.start();
+  assert.equal(session.hosted, true);
+  assert.equal(phrases.length, 1);
+  session.advance(32 + 0.25);
+  assert.equal(phrases.length, 2, 'second phrase begins once 32 beats have elapsed');
+  assert.ok(Math.abs(session.beat - 0.25) < 1e-6, 'overshoot carries into the next phrase');
+  session.stop();
+  assert.ok(sent.filter(b => (b[0] & 240) === 144).length <= sent.filter(b => (b[0] & 240) === 128).length, 'stop releases every owned note');
+  const before = sent.length;
+  session.advance(4);
+  assert.equal(sent.length, before, 'a stopped session ignores the host clock');
+});

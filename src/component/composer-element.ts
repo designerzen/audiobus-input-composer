@@ -16,12 +16,13 @@ const COLOURS = { melody: '#d0e9aa', bass: '#88abd9', harmony: '#b9a0d9', percus
 
 /** A dependency-free, Shadow DOM instrument. Import the component entry to register it. */
 export class AudioBusComposer extends HTMLElement {
-  static observedAttributes = ['seed', 'emotion', 'energy', 'intensity', 'tempo', 'root', 'mode', 'algorithm', 'swing'];
+  static observedAttributes = ['seed', 'emotion', 'energy', 'intensity', 'tempo', 'root', 'mode', 'algorithm', 'swing', 'host-clock'];
   private view = this.attachShadow({ mode: 'open' });
   private state = normalizeOptions();
   private scoreValue = compose();
   private synth = new PreviewSynth();
   private output: MidiOutputAdapter = this.synth;
+  private hosted = false;
   private session = this.makeSession();
   private events = new Map(this.scoreValue.events.map(e => [e.id, e]));
   private listeners?: AbortController;
@@ -37,6 +38,19 @@ export class AudioBusComposer extends HTMLElement {
   get score(): Score { return structuredClone(this.scoreValue); }
   get recording(): PerformanceRecord { return this.session.recording; }
   get playing(): boolean { return this.session.running; }
+  /**
+   * Host clock: the owner's transport drives the beat through advance(), so playback follows its tempo,
+   * pause and stop. The Start, Stop and output controls are hidden; the host also supplies setOutput().
+   */
+  get hostClock(): boolean { return this.hosted; }
+  set hostClock(value: boolean) {
+    if (value === this.hosted) return;
+    this.stop('clock-changed'); this.hosted = value;
+    this.toggleAttribute('host-clock', value);
+    this.session = this.makeSession(); this.updateStatus();
+  }
+  /** Host clock only: advance by quarter-note beats of the host transport. */
+  advance(beats: number): void { this.session.advance(beats); }
   get peer(): MidiSink | undefined { return this.peerValue; }
   set peer(value: MidiSink | undefined) { this.connectPeer(value); }
 
@@ -58,21 +72,25 @@ export class AudioBusComposer extends HTMLElement {
       if (path && (e as PointerEvent).buttons === 1) this.selectPath(path);
     }, { signal });
     this.view.addEventListener('keydown', e => this.onWheelKey(e as KeyboardEvent), { signal });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.stop('hidden'); }, { signal });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && !this.hosted) this.stop('hidden'); }, { signal });
     window.addEventListener('pagehide', () => this.stop('page-hidden'), { signal });
     for (const name of AudioBusComposer.observedAttributes) if (this.hasAttribute(name)) this.attributeChangedCallback(name, null, this.getAttribute(name));
     this.refreshOutputs('internal'); this.syncControls(); this.renderScore(); this.drawFrame();
   }
   disconnectedCallback(): void {
-    this.stop('disconnected'); this.listeners?.abort(); this.synth.dispose();
+    this.listeners?.abort();
+    if (this.frame !== undefined) cancelAnimationFrame(this.frame);
+    this.ready = false;
+    // A host-clocked composer is an engine as well as a view: it keeps playing into the host's output when its panel closes.
+    if (this.hosted) return;
+    this.stop('disconnected'); this.synth.dispose();
     if (this.midiAccess) this.midiAccess.onstatechange = null;
     this.midiAccess = undefined; this.midiPort = undefined;
     this.output = this.synth; this.session.setOutput(this.synth);
-    if (this.frame !== undefined) cancelAnimationFrame(this.frame);
-    this.ready = false;
   }
   attributeChangedCallback(name: string, oldValue: string | null, value: string | null): void {
     if (oldValue === value) return;
+    if (name === 'host-clock') { this.hostClock = value !== null; return; }
     const fallback = DEFAULT_OPTIONS[name as keyof ComposerOptions];
     const next = value === null ? fallback : ['energy', 'intensity', 'tempo', 'root', 'swing'].includes(name) ? Number(value) : value;
     try { this.configure({ [name]: next }); } catch (e) { this.reportError(e); }
@@ -90,7 +108,7 @@ export class AudioBusComposer extends HTMLElement {
     const token = ++this.playToken;
     try {
       if (this.output === this.synth) await this.synth.resume();
-      if (token !== this.playToken || !this.isConnected) return;
+      if (token !== this.playToken || (!this.isConnected && !this.hosted)) return;
       this.session.update(this.state); this.session.start(); this.updateStatus();
     } catch (error) { this.reportError(error); }
   }
@@ -120,12 +138,13 @@ export class AudioBusComposer extends HTMLElement {
   }
 
   private makeSession(): ComposerSession {
+    const clock = this.hosted ? 'host' : 'internal';
     return new ComposerSession(this.state, this.output, {
       onPhrase: phrase => this.onPhrase(phrase),
       onStop: reason => { this.updateStatus(reason); this.emit('composer-state-change', { playing: false, reason }); },
       onEvent: record => this.onDispatch(record),
       onError: error => this.reportError(error),
-    });
+    }, { clock });
   }
   private onPhrase(phrase: Phrase): void {
     this.scoreValue = { schemaVersion: 1, generatorVersion: '0.1.0', options: phrase.options, length: phrase.length, phrases: [phrase], events: phrase.events };
