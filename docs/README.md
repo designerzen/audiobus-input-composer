@@ -41,6 +41,7 @@ The strongest starting point is a hybrid: explicit form and harmonic planning, r
 | [27 — HarmonEasy research and reuse](27-harmoneasy-research-and-reuse.md) | What do its pitch geometry, ensemble research and inspected code contribute? |
 | [115 individual technique studies](techniques/README.md) | How does each algorithm work, affect symbolic output and respond to the controls? |
 | [Combining techniques](techniques/COMBINING.md) | How can the methods form coherent, testable composition pipelines? |
+| [Music theory as generative machinery](theory/README.md) | Which theory (schemata, counterpoint, tension, cadences, reharmonisation, groove, texture) was missing, and how does it drive generation? |
 | [References and evidence ledger](references/README.md) | What was read, verified, inherited or unavailable? |
 
 For a first implementation, read 01 → 06 → 11 → 12 → 15. For musical understanding, read 04 → 05 → 07 → 08 → 13. For checking the research, read 02 → 03 → references → 10.
