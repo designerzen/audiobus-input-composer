@@ -97,6 +97,18 @@ test('transport releases owned notes and superseded gates cannot silence a retri
   now = 5000; transport.tick(); assert.equal(sent.length, 4);
 });
 
+test('seeking releases sounding notes and plays on from the new beat, backwards or forwards', () => {
+  let now = 0; const sent = [], transport = new Transport({ send: b => sent.push([...b]) }, { now: () => now, maxGapMs: 5000 });
+  transport.start({ events: [note('a', 0, 2), note('b', 2, 1, 64), note('c', 3, 1, 67)], length: 4, options: { tempo: 60 } }, false);
+  now = 2500; transport.tick(); assert.deepEqual(sent.slice(-1), [[144, 64, 89]]);
+  transport.seek(0); assert.deepEqual(sent.slice(-2), [[128, 64, 0], [144, 60, 89]], 'b is released and a starts again');
+  assert(Math.abs(transport.beat) < 1e-9); assert.equal(transport.activeCount, 1);
+  transport.seek(3); assert.deepEqual(sent.slice(-2), [[128, 60, 0], [144, 67, 89]]);
+  const hosted = new Transport({ send: () => {} }, { clock: 'host' });
+  hosted.start({ events: [note('a', 0, 1)], length: 4, options: { tempo: 60 } }); hosted.seek(2);
+  assert.equal(hosted.beat, 0, 'a host clock owns its position');
+});
+
 test('suspension and output failure stop delivery without catch-up attacks', () => {
   let now = 0; const sent = []; let reason, error;
   const transport = new Transport({ send: b => sent.push([...b]) }, { now: () => now, onStop: r => { reason = r; } });

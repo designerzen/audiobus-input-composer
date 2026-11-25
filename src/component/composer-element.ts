@@ -92,7 +92,7 @@ export class AudioBusComposer extends HTMLElement {
     document.addEventListener('visibilitychange', () => { if (document.hidden && !this.hosted) this.stop('hidden'); }, { signal });
     window.addEventListener('pagehide', () => this.stop('page-hidden'), { signal });
     for (const name of AudioBusComposer.observedAttributes) if (this.hasAttribute(name)) this.attributeChangedCallback(name, null, this.getAttribute(name));
-    this.refreshOutputs('internal'); this.syncControls(); this.renderScore(); this.updateStatus();
+    this.refreshOutputs('internal'); this.refreshInputs('none'); this.syncControls(); this.renderScore(); this.updateStatus();
     if (this.playing) this.ensureAnimation();
   }
   disconnectedCallback(): void {
@@ -137,6 +137,12 @@ export class AudioBusComposer extends HTMLElement {
     this.stopAnimation();
     this.clearActiveNotes();
     this.updateStatus(reason);
+  }
+  /** Play from the start of a bar of the shown phrase, starting playback if it is stopped. Not available on a host clock. */
+  async playFrom(bar: number): Promise<void> {
+    if (this.hosted) return;
+    if (!this.playing) await this.start();
+    if (this.playing) { this.session.seek(clamp(Math.floor(bar), 0, 7)); this.ensureAnimation(); }
   }
   finish(): void { if (this.playing) { this.session.finish(); this.setText('applied', 'Finishing at the current phrase’s tonic cadence.'); } }
   connectPeer(peer?: MidiSink): void {
@@ -246,7 +252,7 @@ export class AudioBusComposer extends HTMLElement {
     if (playhead) playhead.style.display = 'none';
     const progress = this.view.getElementById('phrase-progress-fill');
     if (progress) progress.style.width = '0%';
-    this.view.querySelectorAll<HTMLElement>('[data-bar].current').forEach(el => el.classList.remove('current'));
+    this.view.querySelectorAll<HTMLElement>('[data-bar].current').forEach(el => { el.classList.remove('current'); el.removeAttribute('aria-current'); });
     this.lastBarDrawn = -1;
   }
   private ensureAnimation(): void {
@@ -367,6 +373,7 @@ export class AudioBusComposer extends HTMLElement {
     if (path) { this.selectPath(path); return; }
     const button = target.closest('button');
     if (!button) return;
+    if (button.dataset.bar !== undefined) { void this.playFrom(Number(button.dataset.bar)); return; }
     switch (button.id) {
       case 'start': void this.start(); break;
       case 'stop': this.stop(); break;
@@ -406,6 +413,8 @@ export class AudioBusComposer extends HTMLElement {
       this.view.querySelector<SVGPathElement>('path[tabindex="0"]')?.focus();
       return;
     }
+    const bar = target.closest<HTMLElement>('.chord[data-bar]');
+    if (bar && this.moveBarFocus(bar, event.key)) { event.preventDefault(); return; }
     if (!this.hosted && (event.key === 't' || event.key === 'T') && !event.ctrlKey && !event.metaKey && !event.altKey && !target.closest('input[type=text], input[type=number], select, textarea')) {
       this.tapTempo(); return;
     }
@@ -413,6 +422,18 @@ export class AudioBusComposer extends HTMLElement {
       event.preventDefault();
       if (this.playing) this.stop(); else void this.start();
     }
+  }
+  /** Arrow keys move between bars (up and down by a row of the grid); Home and End go to the first and last. */
+  private moveBarFocus(from: HTMLElement, key: string): boolean {
+    const bars = [...this.view.querySelectorAll<HTMLElement>('.chord[data-bar]')];
+    const columns = getComputedStyle(from.parentElement!).gridTemplateColumns.split(' ').length;
+    const steps: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns };
+    const index = bars.indexOf(from);
+    const next = key === 'Home' ? 0 : key === 'End' ? bars.length - 1 : key in steps ? clamp(index + steps[key], 0, bars.length - 1) : -1;
+    if (next < 0) return false;
+    bars.forEach((el, i) => el.tabIndex = i === next ? 0 : -1);
+    bars[next].focus();
+    return true;
   }
   private refreshOutputs(selected: string): void {
     const el = this.view.querySelector<HTMLSelectElement>('[name=output]');
@@ -426,9 +447,7 @@ export class AudioBusComposer extends HTMLElement {
     if (!this.ready) return;
     const phrase = this.scoreValue.phrases[0];
     this.events = new Map(this.scoreValue.events.map(e => [e.id, e]));
-    this.setText('section-label', `${this.playing ? 'Live' : 'Preview'} / ${phrase.section}`);
-    this.setText('score-title', 'A phrase with somewhere to go.');
-    this.setText('score-meta', `${GENRE_PROFILES[phrase.genre].label} · ${this.scoreValue.options.tempo} BPM · ${MODE_LABELS[phrase.mode]} · ${phrase.cadence} cadence · ${this.scoreValue.events.length} events${this.scoreValue.length > 32 ? ' · showing first 8 bars' : ''}`);
+    this.setText('score-meta', `${titleCase(phrase.section)} · ${GENRE_PROFILES[phrase.genre].label} · ${this.scoreValue.options.tempo} BPM · ${MODE_LABELS[phrase.mode]} · ${phrase.cadence} cadence · ${this.scoreValue.events.length} events${this.scoreValue.length > 32 ? ' · showing first 8 bars' : ''}`);
     const width = 960, left = 37, inner = width - left, height = 200;
     const visible = phrase.events.filter(e => e.start < phrase.start + 32);
     const melodic = visible.filter(e => e.part !== 'percussion');
@@ -448,9 +467,14 @@ export class AudioBusComposer extends HTMLElement {
     }
     svg += `<line id="playhead" class="playhead" x1="${left}" x2="${left}" y1="12" y2="184"/></svg>`;
     this.view.getElementById('roll')!.innerHTML = svg;
-    this.view.getElementById('chords')!.innerHTML = phrase.bars.map((bar, i) =>
-      `<div class="chord ${bar.function.endsWith('cadence') || bar.function === 'modulation' ? 'cadence' : ''}" data-bar="${i}"><div class="chord-top"><span class="number">${String(i + 1).padStart(2, '0')}</span><span class="roman">${bar.roman ?? ''}</span></div><strong>${bar.chord}</strong><small>${bar.function}</small><div class="tension-bar" title="Tension ${Math.round(bar.tension * 100)}% (target ${Math.round(bar.targetTension * 100)}%)"><div class="tension-fill" style="width:${Math.round(bar.tension * 100)}%"></div><div class="tension-target" style="left:${Math.round(bar.targetTension * 100)}%"></div></div></div>`
+    // Rebuilding the bars must not lose keyboard focus while a phrase or revision arrives.
+    const chords = this.view.getElementById('chords')!;
+    const focused = (this.view.activeElement as HTMLElement | null)?.dataset.bar;
+    const tabStop = Number(focused ?? (this.playing ? Math.max(0, this.lastBarDrawn) : 0));
+    chords.innerHTML = phrase.bars.map((bar, i) =>
+      `<button class="chord ${bar.function.endsWith('cadence') || bar.function === 'modulation' ? 'cadence' : ''}" data-bar="${i}" tabindex="${i === tabStop ? 0 : -1}" aria-label="Bar ${i + 1}: ${bar.chord}${bar.roman ? ` (${bar.roman})` : ''}, ${bar.function}. Play from here."><span class="chord-top"><span class="number">${String(i + 1).padStart(2, '0')}</span><span class="roman">${bar.roman ?? ''}</span></span><strong>${bar.chord}</strong><small>${bar.function}</small><span class="tension-bar" title="Tension ${Math.round(bar.tension * 100)}% (target ${Math.round(bar.targetTension * 100)}%)"><span class="tension-fill" style="width:${Math.round(bar.tension * 100)}%"></span><span class="tension-target" style="left:${Math.round(bar.targetTension * 100)}%"></span></span></button>`
     ).join('');
+    if (focused !== undefined) chords.querySelector<HTMLElement>(`[data-bar="${focused}"]`)?.focus();
     this.setText('reason', `${GENRE_PROFILES[phrase.genre].label} idiom; ${ALGORITHM_LABELS[this.scoreValue.options.algorithm].toLowerCase()} proposes melodies, and the one closest to the emotion’s tension curve is kept.`);
   }
   private drawFrame = (): void => {
@@ -469,7 +493,10 @@ export class AudioBusComposer extends HTMLElement {
     if (currentBar !== this.lastBarDrawn) {
       this.lastBarDrawn = currentBar;
       this.setText('bar-pill', `Bar ${currentBar + 1} / 8`);
-      this.view.querySelectorAll<HTMLElement>('[data-bar]').forEach(el => el.classList.toggle('current', Number(el.dataset.bar) === currentBar));
+      this.view.querySelectorAll<HTMLElement>('[data-bar]').forEach(el => {
+        const current = Number(el.dataset.bar) === currentBar;
+        el.classList.toggle('current', current); el.toggleAttribute('aria-current', current);
+      });
       this.updateAppliedMessage();
     }
     this.frame = requestAnimationFrame(this.drawFrame);
@@ -480,27 +507,34 @@ export class AudioBusComposer extends HTMLElement {
     anchor.href = url; anchor.download = name; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   private template(): string {
+    const options = (values: readonly string[], label: (v: string) => string) => values.map(v => `<option value="${v}">${label(v)}</option>`).join('');
     return `<style>${STYLES}${STAR_STYLES}</style><section class="instrument" aria-label="Autonomous music composer">
       <div class="topbar"><div class="brand"><span class="brand-mark" aria-hidden="true"></span>AudioBus / Composer</div><div class="live" data-playing="false"><span class="bar-pill" id="bar-pill">Bar 1 / 8</span><span class="dot"></span><span id="live-label">Ready to compose</span></div></div>
-      <div class="workspace"><section class="expression" aria-labelledby="expression-title">
-        <div class="section-heading"><div><div class="eyebrow">01 / Expression</div><h2 id="expression-title">Give the music a feeling.</h2></div></div>
+      <div class="workspace"><section class="expression" aria-label="Feeling">
         <div class="wheel-wrap">${STAR_ART}</div>
         <p class="sr-only">Select an emotion on the star. Left and right arrows change family; up and down change intensity. Equivalent controls follow.</p>
         <div class="wheel-description" aria-live="polite"><div class="selected-label" id="emotion-label">Joy</div><div class="selection-meta"><span class="family" id="family-label">Joy</span> family · intensity <span id="intensity-value">67%</span></div></div>
-        <div class="emotion-alternatives"><label class="field">Emotion family<select name="emotion">${FAMILIES.map(f => `<option value="${f}">${titleCase(f)}</option>`).join('')}</select></label><label class="field"><span class="range-label">Intensity</span><input name="intensity" type="range" min="0" max="1" step="0.01" aria-label="Emotion intensity"></label></div>
-      </section><section class="controls" aria-labelledby="direction-title">
-        <div><div class="eyebrow">02 / Direction</div><h2 id="direction-title">Let a theme find its way.</h2><div class="hint">Rules shape the phrase. You shape its character.</div></div>
-        <label class="field"><span class="range-label"><span>Energy</span><output class="energy-value" id="energy-value">50</output></span><input name="energy" aria-label="Energy" type="range" min="0" max="1" step="0.01"><span class="range-ends"><span>Spacious</span><span>Active</span></span></label>
-        <div class="control-grid"><label class="field">Genre<select name="genre">${GENRES.map(g => `<option value="${g}">${GENRE_PROFILES[g].label}</option>`).join('')}</select></label><label class="field">Generator<select name="algorithm">${ALGORITHMS.map(a => `<option value="${a}">${ALGORITHM_LABELS[a]}</option>`).join('')}</select></label><label class="field"><span class="range-label"><span>Tempo</span><output id="tempo-value">104 BPM</output></span><div class="seed-row tempo-row"><input name="tempo" type="range" min="30" max="240" step="1" aria-label="Tempo / BPM"><button id="tap" title="Tap the beat to set the tempo (or press T)">Tap</button></div></label><label class="field">Tonic<select name="root">${Array.from({ length: 12 }, (_, i) => `<option value="${i}">${pitchName(i + 60).slice(0, -1)}</option>`).join('')}</select></label><label class="field">Harmonic colour<select name="mode">${(Object.keys(MODE_LABELS) as Mode[]).map(m => `<option value="${m}">${MODE_LABELS[m]}</option>`).join('')}</select></label></div>
-        <div class="control-grid"><label class="field">Theme seed<div class="seed-row"><input name="seed" type="text" maxlength="128" spellcheck="false"><button id="reroll" aria-label="Create a new theme" title="Create a new theme">↻</button></div></label><label class="field"><span class="range-label">Swing <output id="swing-value">0%</output></span><input name="swing" type="range" min="0" max="0.45" step="0.01" aria-label="Swing"></label></div>
-        <div class="field"><span class="field-label" id="parts-label">Ensemble</span><div class="parts" role="group" aria-labelledby="parts-label">${PARTS.map(p => `<label class="part"><input type="checkbox" data-part="${p}" checked>${titleCase(p)}</label>`).join('')}<label class="part" title="Send General MIDI Program Change messages for the genre’s instruments"><input type="checkbox" name="programs">Instrument changes</label></div></div>
+        <div class="control-grid"><label class="field">Emotion family<select name="emotion">${options(FAMILIES, titleCase)}</select></label><label class="field">Intensity<input name="intensity" type="range" min="0" max="1" step="0.01" aria-label="Emotion intensity"></label></div>
+      </section><section class="controls" aria-label="Music">
         <div><div class="transport-buttons"><button class="primary" id="start">▶ Start composing</button><button id="finish" disabled>Finish phrase</button><button class="danger" id="stop" disabled>Stop</button></div><div class="applied-wrap"><div class="phrase-progress" aria-hidden="true"><div class="phrase-progress-fill" id="phrase-progress-fill"></div></div><p class="applied" id="applied" role="status">Ready. Start composing, then steer the next phrase.</p></div></div>
-        <div class="output-row"><label class="field">Output<select name="output"><option value="internal">Browser audition</option><option value="silent">Events only</option><option value="request-midi">Connect MIDI output…</option></select></label><label class="field volume-field">Audition volume<input name="volume" type="range" min="0" max="1" step="0.01" value="0.35" aria-label="Audition volume"></label></div>
-        <div class="input-row"><label class="field">Follow MIDI input<select name="input"><option value="none">Off</option><option value="request-midi-in">Connect MIDI input…</option></select><span class="hint" id="input-label">Play along: the composer follows your key.</span></label><button id="capture" disabled title="Use the last notes you played as the theme">Use played theme</button></div>
+        <label class="field"><span class="range-label"><span>Energy</span><output class="energy-value" id="energy-value">50</output></span><input name="energy" aria-label="Energy" type="range" min="0" max="1" step="0.01"><span class="range-ends"><span>Spacious</span><span>Active</span></span></label>
+        <div class="control-grid"><label class="field">Genre<select name="genre">${options(GENRES, g => GENRE_PROFILES[g as Genre].label)}</select></label><label class="field"><span class="range-label">Swing <output id="swing-value">0%</output></span><input name="swing" type="range" min="0" max="0.45" step="0.01" aria-label="Swing"></label></div>
+        <label class="field"><span class="range-label"><span>Tempo</span><output id="tempo-value">104 BPM</output></span><div class="seed-row"><input name="tempo" type="range" min="30" max="240" step="1" aria-label="Tempo / BPM"><button id="tap" title="Tap the beat to set the tempo (or press T)">Tap</button></div></label>
+        <details class="more"><summary>Theme &amp; harmony</summary><div class="more-body">
+          <div class="control-grid"><label class="field">Tonic<select name="root">${Array.from({ length: 12 }, (_, i) => `<option value="${i}">${pitchName(i + 60).slice(0, -1)}</option>`).join('')}</select></label><label class="field">Harmonic colour<select name="mode">${options(Object.keys(MODE_LABELS), m => MODE_LABELS[m as Mode])}</select></label></div>
+          <div class="control-grid"><label class="field">Theme seed<div class="seed-row"><input name="seed" type="text" maxlength="128" spellcheck="false"><button id="reroll" aria-label="Create a new theme" title="Create a new theme">↻</button></div></label><label class="field">Generator<select name="algorithm">${options(ALGORITHMS, a => ALGORITHM_LABELS[a as typeof ALGORITHMS[number]])}</select></label></div>
+          <div class="field"><span class="field-label" id="parts-label">Ensemble</span><div class="parts" role="group" aria-labelledby="parts-label">${PARTS.map(p => `<label class="part"><input type="checkbox" data-part="${p}" checked>${titleCase(p)}</label>`).join('')}</div></div>
+        </div></details>
+        <details class="more"><summary>Sound &amp; MIDI</summary><div class="more-body">
+          <div class="output-row"><label class="field">Output<select name="output"></select></label><label class="field">Volume<input name="volume" type="range" min="0" max="1" step="0.01" value="0.35" aria-label="Audition volume"></label></div>
+          <label class="part" title="Send General MIDI Program Change messages for the genre’s instruments"><input type="checkbox" name="programs">Send instrument changes</label>
+          <div class="input-row"><label class="field">Follow MIDI input<select name="input"></select></label><button id="capture" disabled title="Use the last notes you played as the theme">Use played theme</button></div>
+          <span class="hint" id="input-label">Play along: the composer follows your key.</span>
+        </div></details>
       </section></div>
-      <section class="score-section" aria-labelledby="score-title"><div class="score-header"><div><div class="eyebrow" id="section-label">Preview / Establish</div><h2 id="score-title">A phrase with somewhere to go.</h2></div><div class="score-meta" id="score-meta"></div></div><div class="roll-scroll" id="roll"></div><div class="chords" id="chords"></div><div class="legend">${(['melody', 'bass', 'harmony'] as const).map(p => `<span style="--swatch:${COLOURS[p]}">${titleCase(p)}</span>`).join('')}<span style="--swatch:#e8b780">Percussion on channel 10</span></div></section>
-      <div class="lower"><section class="notes"><div class="eyebrow">Inside the decision</div><p class="reason" id="reason"></p></section><section class="exports"><div class="eyebrow">Keep the music</div><div class="buttons"><button id="midi">Export MIDI</button><button id="json">Save score</button><button id="recording">Save performance log</button></div><p class="hint">Score exports contain the displayed plan. The performance log records phrase snapshots and actual dispatches.</p></section></div>
-      <div class="footer"><span>Symbolic music · seeded decisions · 4/4 phrases · v${GENERATOR_VERSION}</span><span id="output-label">Browser audition</span></div>
+      <section class="score-section" aria-label="Phrase"><div class="score-meta" id="score-meta"></div><div class="roll-scroll" id="roll"></div><div class="chords" id="chords" role="toolbar" aria-label="Bars: choose one to play from it"></div><div class="legend">${PARTS.map(p => `<span style="--swatch:${COLOURS[p]}">${titleCase(p)}</span>`).join('')}</div></section>
+      <div class="footer"><p class="reason" id="reason"></p><div class="buttons"><button id="midi">Export MIDI</button><button id="json" title="The displayed plan as JSON">Save score</button><button id="recording" title="Phrase snapshots and every MIDI message sent">Save performance log</button></div></div>
+      <div class="colophon"><span>Seeded, symbolic music in 4/4 · v${GENERATOR_VERSION}</span><span id="output-label">Browser audition</span></div>
     </section>`;
   }
 }

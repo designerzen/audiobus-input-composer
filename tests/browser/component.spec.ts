@@ -10,6 +10,7 @@ test('component renders the source star and responds to controls without startin
   await composer.getByLabel('Emotion family').selectOption('sadness');
   await expect(composer.locator('#emotion-label')).toHaveText('Sadness');
   await expect(composer.getByRole('button', { name: 'Stop', exact: true })).toBeDisabled();
+  await composer.getByText('Theme & harmony').click();
   for (const algorithm of ['markov', 'life', 'evolution', 'grammar', 'euclidean', 'torus']) {
     await composer.getByLabel('Generator').selectOption(algorithm);
     await expect(composer.locator('.chord')).toHaveCount(8);
@@ -150,6 +151,7 @@ test('the page link holds the settings, so a shared link reproduces them', async
 test('MIDI input following is offered, and the played theme waits for an input', async ({ page }) => {
   await page.goto('/');
   const composer = page.locator('audiobus-composer');
+  await composer.getByText('Sound & MIDI').click();
   await expect(composer.getByLabel('Follow MIDI input')).toHaveValue('none');
   await expect(composer.getByRole('button', { name: 'Use played theme' })).toBeDisabled();
 });
@@ -181,4 +183,27 @@ test('tempo is set with a slider or by tapping the beat', async ({ page }) => {
   for (let i = 0; i < 4; i++) { await tap.click(); await page.clock.runFor(500); }
   await expect(composer.getByLabel('Tempo / BPM')).toHaveValue('120');
   await expect(composer.locator('#tempo-value')).toHaveText('120 BPM');
+});
+
+test('bars can be chosen by click or keyboard to play from them', async ({ page }) => {
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  await page.evaluate(() => { (document.querySelector('audiobus-composer') as any).setOutput({ label: 'Test', send: () => {} }); });
+  const bars = composer.getByRole('toolbar', { name: /Bars/ }).getByRole('button');
+  await expect(bars).toHaveCount(8);
+  await bars.first().focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(bars.nth(1)).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(bars.nth(7)).toBeFocused();
+  await expect(bars.nth(7)).toHaveAttribute('tabindex', '0');
+  await expect(bars.first()).toHaveAttribute('tabindex', '-1');
+  await bars.nth(5).click();
+  await expect(composer.locator('#live-label')).toHaveText('Composing live');
+  await expect(composer.locator('#bar-pill')).toHaveText('Bar 6 / 8');
+  await expect(bars.nth(5)).toHaveAttribute('aria-current', '');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Enter');
+  await expect(composer.locator('#bar-pill')).toHaveText('Bar 1 / 8');
+  await composer.getByRole('button', { name: 'Stop', exact: true }).click();
 });

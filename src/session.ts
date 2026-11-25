@@ -81,6 +81,8 @@ export class ComposerSession {
   /** Stop after the next closed cadence; an open phrase is followed by one that closes. */
   finish(): void { if (this.running) this.finishing = true; }
   stop(reason = 'stopped'): void { this.finishing = true; this.transport.stop(reason); }
+  /** Internal clock only: play on from the start of a bar of the current phrase. */
+  seek(bar: number): void { if (this.phrase) this.transport.seek(Math.floor(bar) * 4); }
   setOutput(output: MidiOutputAdapter): void { this.finishing = true; this.programKey = ''; this.transport.setOutput(output); }
 
   private next(): void {

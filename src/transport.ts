@@ -27,6 +27,8 @@ const addressOf = (e: NoteEvent) => `${e.channel}:${e.pitch}`;
 /** Beat-to-monotonic-time transport. Future events stay local; no remote timestamp is invented. */
 export class Transport {
   private queue: Scheduled[] = [];
+  /** Every note of the loaded score, including replacements, so seek() can schedule from anywhere. */
+  private events: readonly NoteEvent[] = [];
   private cursor = 0;
   private active = new Map<string, NoteEvent>();
   private origin = 0;
@@ -93,6 +95,20 @@ export class Transport {
     const kept = this.queue.slice(this.cursor).filter(item => item.event.start < fromBeat - 1e-9);
     this.queue = this.sorted([...kept, ...this.schedule(events, fromBeat)]);
     this.cursor = 0;
+    this.events = [...this.events.filter(e => e.start < fromBeat - 1e-9), ...events];
+  }
+
+  /** Internal clock only: jump to a beat of the current score. Sounding notes are released; notes resume at the next attack. */
+  seek(beat: number): void {
+    if (!this.running || this.hosted || !Number.isFinite(beat)) return;
+    const to = Math.min(Math.max(0, beat), this.endBeat - 1e-6), stopBeat = this.beat, now = this.now();
+    if (this.lookahead) try { this.output.clear?.(); } catch { /* Output disconnected. */ }
+    const releasing = [...this.active.values()]; this.active.clear();
+    for (const e of releasing) this.send([128 | (e.channel - 1), e.pitch, 0], e.id, stopBeat);
+    this.queue = this.sorted(this.schedule(this.events.filter(e => e.start >= to - 1e-9), to));
+    this.cursor = 0; this.origin = now - to * 60000 / this.tempo; this.lastWake = now;
+    this.revision++;
+    this.tick();
   }
 
   /** Host clock only: move the beat on by a musical duration, in quarter-note beats, and dispatch what is due. */
@@ -172,6 +188,7 @@ export class Transport {
     validateEvents(score.events);
     if (!Number.isFinite(score.length) || score.length <= 0 || !Number.isFinite(score.options.tempo) || score.options.tempo < 30 || score.options.tempo > 240 || score.events.some(e => e.start >= score.length || e.start + e.duration > score.length + MAX_OVERHANG)) throw new RangeError('Invalid transport score');
     this.queue = this.sorted([...this.schedule(score.events), ...carried]);
+    this.events = score.events;
     this.tempo = score.options.tempo; this.endBeat = score.length; this.cursor = 0;
   }
   /** Notes sound at their notated start plus the genre's timing push, never before floor. */
