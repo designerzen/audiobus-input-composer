@@ -11,15 +11,30 @@ function variableLength(value: number): number[] {
   return result;
 }
 const be = (n: number, bytes: number) => Array.from({ length: bytes }, (_, i) => (n >>> (8 * (bytes - 1 - i))) & 255);
+const metaText = (type: number, text: string): number[] => {
+  const bytes = [...new TextEncoder().encode(text)];
+  return [255, type, ...variableLength(bytes.length), ...bytes];
+};
 
-/** Format-0 Standard MIDI File, 480 PPQ, explicit note-offs and a fixed export tempo. */
+/** Format-0 Standard MIDI File, 480 PPQ, explicit note-offs, section/chord markers and a fixed export tempo. */
 export function scoreToMidi(score: Score): Uint8Array {
   validateEvents(score.events);
   if (!Number.isFinite(score.options.tempo) || score.options.tempo < 30 || score.options.tempo > 240) throw new RangeError('Invalid export tempo');
   if (!Number.isFinite(score.length) || score.length <= 0 || score.length * 480 > 0x0fffffff || score.events.some(e => e.start + e.duration > score.length + 1e-8)) throw new RangeError('Invalid export score length');
   const entries: { tick: number; order: number; data: number[] }[] = [];
   const tempo = Math.round(60_000_000 / score.options.tempo);
-  entries.push({ tick: 0, order: -2, data: [255, 81, 3, ...be(tempo, 3)] }, { tick: 0, order: -1, data: [255, 88, 4, 4, 2, 24, 8] });
+  entries.push(
+    { tick: 0, order: -3, data: metaText(3, `AudioBus Composer — ${score.options.emotion} (${score.options.algorithm})`) },
+    { tick: 0, order: -2, data: [255, 81, 3, ...be(tempo, 3)] },
+    { tick: 0, order: -1, data: [255, 88, 4, 4, 2, 24, 8] },
+  );
+  // Embed section and chord markers as standard MIDI meta events for DAWs.
+  for (const phrase of score.phrases) {
+    entries.push({ tick: Math.round(phrase.start * 480), order: -1, data: metaText(6, `${phrase.section} (${phrase.mode})`) });
+    for (const bar of phrase.bars) {
+      entries.push({ tick: Math.round(bar.start * 480), order: -1, data: metaText(1, bar.roman ? `${bar.chord} (${bar.roman})` : bar.chord) });
+    }
+  }
   // Retrigger policy matches live transport. Superseded gates never release a newer note.
   const addresses = new Map<string, typeof score.events>();
   for (const event of score.events) { const key = `${event.channel}:${event.pitch}`; const list = addresses.get(key) ?? []; list.push(event); addresses.set(key, list); }

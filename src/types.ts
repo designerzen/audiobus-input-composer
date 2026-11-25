@@ -2,7 +2,7 @@ export const FAMILIES = ['joy', 'trust', 'fear', 'surprise', 'sadness', 'disgust
 export type EmotionFamily = typeof FAMILIES[number];
 export const ALGORITHMS = ['motif', 'markov', 'life', 'evolution', 'grammar', 'euclidean', 'torus'] as const;
 export type Algorithm = typeof ALGORITHMS[number];
-export const MODES = ['auto', 'major', 'minor', 'dorian', 'mixolydian'] as const;
+export const MODES = ['auto', 'major', 'minor', 'dorian', 'mixolydian', 'lydian', 'phrygian', 'harmonic-minor', 'locrian'] as const;
 export type Mode = typeof MODES[number];
 export type ResolvedMode = Exclude<Mode, 'auto'>;
 export const PARTS = ['melody', 'bass', 'harmony', 'percussion'] as const;
@@ -39,6 +39,7 @@ export interface BarPlan {
   index: number;
   start: number;
   chord: string;
+  roman?: string;
   degree: number;
   pitches: number[];
   function: 'presentation' | 'continuation' | 'half cadence' | 'cadence';

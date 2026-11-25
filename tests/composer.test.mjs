@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ALGORITHMS, FAMILIES, compose, composePhrase, normalizeOptions, pitchMask, intervalVector, quantize, lifeStep, trainMarkov, euclidean, evolveMotif, random, voiceLead, degreePitch, scoreToMidi, Transport, ComposerSession, audioBusOutput } from '../dist/index.js';
+import { ALGORITHMS, FAMILIES, MODES, compose, composePhrase, normalizeOptions, pitchMask, intervalVector, quantize, lifeStep, trainMarkov, euclidean, evolveMotif, random, voiceLead, degreePitch, describeChord, transformMotif, scoreToMidi, Transport, ComposerSession, audioBusOutput } from '../dist/index.js';
 
 test('composition is reproducible, query-independent and develops a persistent theme', () => {
   const score = compose({ seed: 'test', bars: 16 });
@@ -160,4 +160,32 @@ test('a host clock drives phrases from beats, never from wall time, and chains w
   const before = sent.length;
   session.advance(4);
   assert.equal(sent.length, before, 'a stopped session ignores the host clock');
+});
+
+test('all modal colours, 4-voice seventh voice leading, chord analysis and motif transforms work cleanly', () => {
+  for (const mode of MODES) {
+    const score = compose({ mode, emotion: 'surprise', intensity: 0.9, energy: 0.85, bars: 8 });
+    assert(score.events.length > 0);
+    assert.equal(score.phrases[0].bars.length, 8);
+    assert(score.phrases[0].bars.every(b => typeof b.roman === 'string' && b.roman.length > 0));
+  }
+  const seventh = voiceLead([67, 71, 74, 77], [60, 64, 67]);
+  assert.equal(seventh.length, 4);
+  assert(seventh[0] <= seventh[1] && seventh[1] <= seventh[2] && seventh[2] <= seventh[3]);
+  assert.deepEqual(seventh.map(p => p % 12).sort((a, b) => a - b), [2, 5, 7, 11]);
+  assert.deepEqual(describeChord([60, 64, 67, 71], 'C', 0, 'major'), { symbol: 'Cmaj7', roman: 'Imaj7' });
+  assert.deepEqual(describeChord([62, 65, 69, 72], 'D', 1, 'major'), { symbol: 'Dm7', roman: 'ii7' });
+  assert.deepEqual(transformMotif([0, 2, 4, 1], 'retrograde'), [1, 4, 2, 0]);
+  assert.deepEqual(transformMotif([0, 2, 4, 1], 'sequence-up'), [1, 3, 5, 2]);
+  assert.deepEqual(transformMotif([2, 4, 3, 0], 'invert'), [2, 0, 1, 4]);
+});
+
+test('emotions produce distinct harmonic progressions and MIDI export embeds section/chord markers', () => {
+  const joyChords = compose({ emotion: 'joy', bars: 8 }).phrases[0].bars.map(b => b.degree);
+  const fearChords = compose({ emotion: 'fear', bars: 8 }).phrases[0].bars.map(b => b.degree);
+  assert.notDeepEqual(joyChords, fearChords);
+  const bytes = scoreToMidi(compose({ emotion: 'anger', intensity: 0.85, bars: 8 }));
+  const text = new TextDecoder().decode(bytes);
+  assert(text.includes('AudioBus Composer'));
+  assert(text.includes('Establish'));
 });

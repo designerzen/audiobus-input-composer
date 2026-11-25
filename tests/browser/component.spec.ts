@@ -68,3 +68,42 @@ test('deployed standalone component modules can be embedded without the demo bun
   });
   expect(result.events).toBeGreaterThan(0); expect(result.registered).toBe(true);
 });
+
+test('hosted integration keeps graph output and transport ownership when its panel moves', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    const element = document.querySelector('audiobus-composer') as any;
+    (window as any).hostNotes = [];
+    element.hostClock = true;
+    element.setOutput({ label: 'Graph chain', send: (bytes: number[]) => (window as any).hostNotes.push([...bytes]) });
+    element.configure({ tempo: 90, emotion: 'anticipation' });
+    await element.start();
+  });
+  const composer = page.locator('audiobus-composer');
+  await expect(composer.getByRole('button', { name: 'Start composing' })).toBeHidden();
+  await expect(composer.getByLabel('Output', { exact: true })).toBeHidden();
+  await expect(composer.getByLabel('Tempo / BPM')).toBeDisabled();
+  await composer.getByLabel('Emotion family').selectOption('fear');
+  await expect(composer.locator('#applied')).toContainText('Selected changes apply next phrase');
+  const result = await page.evaluate(() => {
+    const element = document.querySelector('audiobus-composer') as any;
+    const parent = element.parentElement;
+    element.remove();
+    const playingWhileDetached = element.playing;
+    element.advance(32.25);
+    parent.append(element);
+    const score = element.score;
+    element.stop();
+    const active = new Set();
+    for (const [status, pitch] of (window as any).hostNotes as number[][]) {
+      const key = `${status & 15}:${pitch}`;
+      if ((status & 240) === 144) active.add(key);
+      else if ((status & 240) === 128) active.delete(key);
+    }
+    return { playingWhileDetached, emotion: score.options.emotion, notes: (window as any).hostNotes.length, active: active.size };
+  });
+  expect(result.playingWhileDetached).toBe(true);
+  expect(result.emotion).toBe('fear');
+  expect(result.notes).toBeGreaterThan(0);
+  expect(result.active).toBe(0);
+});

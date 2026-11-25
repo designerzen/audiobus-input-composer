@@ -1,13 +1,30 @@
 import type { ComposerOptions } from './types.js';
-import { clamp, euclidean, lifeStep, mod, random, trainMarkov, weighted } from './theory.js';
+import { clamp, EMOTIONS, euclidean, lifeStep, mod, random, trainMarkov, weighted } from './theory.js';
 
 export interface Material { degrees: number[]; gates: number[]; explanation: string }
 
+export interface MaterialContext {
+  chordDegree?: number;
+  sectionIndex?: number;
+}
+
 /** Small GA: protected anchors, tournament selection, interior crossover and mutation. */
-export function evolveMotif(seed: readonly number[], rng: () => number, generations = 12): number[] {
+export function evolveMotif(seed: readonly number[], rng: () => number, generations = 12, contour = 0): number[] {
   if (seed.length < 3 || seed.some(n => !Number.isInteger(n) || n < 0 || n > 6) || !Number.isInteger(generations) || generations < 0 || generations > 256) throw new RangeError('Invalid evolution bounds');
-  const fitness = (a: number[]) => a.reduce((cost, d, i) => cost + Math.abs(d - seed[i]) * .7 + (i ? Math.max(0, Math.abs(d - a[i - 1]) - 2) : 0), 0) - new Set(a).size * .7;
-  const mutate = (a: number[]) => a.map((d, i) => i && i < a.length - 1 && rng() < .3 ? clamp(d + (rng() < .5 ? -1 : 1), 0, 6) : d);
+  const fitness = (a: number[]) => {
+    let cost = 0;
+    for (let i = 0; i < a.length; i++) {
+      cost += Math.abs(a[i] - seed[i]) * .65;
+      if (i > 0) {
+        const step = a[i] - a[i - 1];
+        cost += Math.max(0, Math.abs(step) - 2) * 1.1;
+        // Reward motion aligned with the emotion's melodic contour.
+        if (contour !== 0 && Math.sign(step) === Math.sign(contour)) cost -= .18;
+      }
+    }
+    return cost - new Set(a).size * .7;
+  };
+  const mutate = (a: number[]) => a.map((d, i) => i && i < a.length - 1 && rng() < .32 ? clamp(d + (rng() < .5 ? -1 : 1), 0, 6) : d);
   let population = [Array.from(seed), ...Array.from({ length: 15 }, () => mutate(Array.from(seed)))];
   for (let g = 0; g < generations; g++) {
     population.sort((a, b) => fitness(a) - fitness(b));
@@ -23,54 +40,103 @@ export function evolveMotif(seed: readonly number[], rng: () => number, generati
 }
 
 /** Generates eight eighth-note candidates; theory chooses anchors and realizations later. */
-export function material(options: ComposerOptions, phrase: number, bar: number, motif: readonly number[]): Material {
+export function material(options: ComposerOptions, phrase: number, bar: number, motif: readonly number[], context: MaterialContext = {}): Material {
   const rng = random(`${options.seed}:material:${phrase}:${bar}:${options.algorithm}`);
-  const density = 2 + Math.round(options.energy * 5);
-  const gates = euclidean(density, 8, bar % 2);
-  let degrees = Array.from({ length: 8 }, (_, i) => motif[i % motif.length]);
+  const profile = EMOTIONS[options.emotion];
+  const density = clamp(2 + Math.round(options.energy * 5), 1, 8);
+  const rotation = (bar + (profile.groove === 'spark' || profile.groove === 'angular' ? 1 : 0)) % 4;
+  const gates = euclidean(density, 8, rotation);
+  const chordDegree = context.chordDegree ?? 0;
+  let degrees = Array.from({ length: 8 }, (_, i) => mod(motif[i % motif.length], 7));
   let explanation: string;
   switch (options.algorithm) {
     case 'markov': {
-      const model = trainMarkov([...motif, 2, 1, 4, 0, ...motif]);
-      let state = motif[0];
-      degrees = degrees.map(() => { const result = state; state = weighted(model[state], rng); return result; });
-      explanation = 'Smoothed degree-transition model; anchors and cadence imposed by the phrase planner';
+      const corpus = [...motif, chordDegree, mod(chordDegree + 2, 7), mod(chordDegree + 4, 7), 4, 0, ...motif].map(d => mod(d, 7));
+      const model = trainMarkov(corpus, 7, .35 + profile.novelty * .4);
+      let state = mod(motif[bar % motif.length], 7);
+      degrees = degrees.map((_, slot) => {
+        const result = state;
+        const row = model[state].map((w, target) => {
+          const step = target - state;
+          const contourBoost = profile.contour !== 0 && Math.sign(step) === Math.sign(profile.contour) ? 1.35 : 1;
+          const chordBoost = (target === chordDegree || target === mod(chordDegree + 2, 7) || target === mod(chordDegree + 4, 7)) && slot % 2 === 0 ? 1.3 : 1;
+          return w * contourBoost * chordBoost;
+        });
+        state = weighted(row, rng);
+        return result;
+      });
+      explanation = 'Contour-biased Markov degree transitions guided by active chord gravity';
       break;
     }
     case 'life': {
-      // Same seed for a phrase, advancing one generation per bar.
+      // Same seed for a phrase, advancing one generation per bar; auto-revive if extinct.
       const boardRng = random(`${options.seed}:life:${phrase}`);
-      let board = Array.from({ length: 7 }, () => Array.from({ length: 8 }, () => boardRng() < .3));
-      for (let n = 0; n < bar; n++) board = lifeStep(board, true);
-      degrees = degrees.map((d, x) => { const rows = board.flatMap((row, y) => row[x] ? [y] : []); return rows.length ? rows[Math.floor(rng() * rows.length)] : d; });
+      let board = Array.from({ length: 7 }, () => Array.from({ length: 8 }, () => boardRng() < (.28 + options.energy * .14)));
+      for (let n = 0; n < bar; n++) {
+        board = lifeStep(board, true);
+        if (!board.some(row => row.some(Boolean))) {
+          // Deterministic glider revival prevents silent stagnation.
+          board[1][2] = board[2][3] = board[3][1] = board[3][2] = board[3][3] = true;
+        }
+      }
+      degrees = degrees.map((d, x) => {
+        const rows = board.flatMap((row, y) => row[x] ? [y] : []);
+        return rows.length ? rows[Math.floor(rng() * rows.length)] : d;
+      });
       for (let x = 1; x < 8; x++) gates[x] = gates[x] && Number(board.some(row => row[x]));
-      explanation = 'Wrapped Life board, one generation per bar; column readout proposes degree and activity';
+      explanation = 'Toroidal Game of Life board, one generation per bar; live columns propose pitch and activity';
       break;
     }
     case 'evolution':
-      degrees = evolveMotif(degrees, rng);
-      explanation = 'Bounded evolutionary variation balances theme distance, leap cost and degree diversity';
+      degrees = evolveMotif(degrees, rng, 12, profile.contour);
+      explanation = 'Evolutionary motif search balancing theme distance, stepwise contour and pitch variety';
       break;
     case 'grammar': {
-      let word = 'A';
-      for (let n = 0; n < 5; n++) word = [...word].map(c => c === 'A' ? 'AB' : 'A').join('');
-      degrees = degrees.map((d, i) => mod(d + (word[(i + bar) % word.length] === 'A' ? 0 : 1), 7));
-      explanation = 'Fibonacci rewriting A→AB, B→A selects motif and neighbour variants';
+      // Multi-symbol L-system producing rich self-similar melodic elaboration.
+      let word = phrase % 2 === 0 ? 'A' : 'AB';
+      const rules: Record<string, string> = { A: 'AB', B: 'CA', C: 'DA', D: 'A' };
+      for (let n = 0; n < 4; n++) word = [...word].map(c => rules[c] ?? 'A').join('');
+      degrees = degrees.map((d, i) => {
+        const sym = word[(i + bar * 3) % word.length];
+        if (sym === 'B') return mod(d + 1, 7);
+        if (sym === 'C') return mod(chordDegree + 2, 7);
+        if (sym === 'D') return mod(d - 1, 7);
+        return d;
+      });
+      explanation = 'Multi-rule L-system (A→AB, B→CA, C→DA) weaving motif, chord leaps and neighbours';
       break;
     }
     case 'torus': {
-      let x = bar, y = phrase % 3;
-      degrees = degrees.map(() => { x += rng() < .5 ? -1 : 1; if (rng() < .35) y++; const pc = mod(x + 5 * y, 12); return Math.round(pc * 6 / 11); });
-      explanation = 'Semitone/fourth torus walk compressed to degree proposals, then harmonically realized';
+      // Tonnetz-inspired pitch-class walk along fifths (+7) and major thirds (+4).
+      let fifths = bar + (phrase % 3), thirds = phrase % 2;
+      degrees = degrees.map(() => {
+        const move = rng();
+        if (move < .45) fifths += profile.contour < 0 ? -1 : 1;
+        else if (move < .75) thirds += rng() < .5 ? 1 : -1;
+        else fifths += rng() < .5 ? -1 : 1;
+        const pc = mod(fifths * 7 + thirds * 4, 12);
+        return Math.round(pc * 6 / 11);
+      });
+      explanation = 'Tonnetz fifth/third torus walk projected onto scale degrees and harmonically anchored';
       break;
     }
-    case 'euclidean':
-      degrees = degrees.map((d, i) => motif[mod(i + bar, motif.length)] ?? d);
-      explanation = 'Euclidean attack distribution with rotating motif readout';
+    case 'euclidean': {
+      const secondary = euclidean(clamp(Math.round(options.energy * 4) + 1, 1, 8), 8, (bar * 3) % 8);
+      degrees = degrees.map((d, i) => {
+        const base = motif[mod(i + bar, motif.length)] ?? d;
+        return secondary[i] ? mod(base + 2, 7) : base;
+      });
+      explanation = 'Dual-layer Euclidean rhythm with rotating motif and polyrhythmic chord-third accents';
       break;
-    default:
-      if (bar >= 4) degrees = degrees.map((d, i) => i % 2 ? clamp(d + (phrase % 2 ? -1 : 1), 0, 6) : d);
-      explanation = 'Motif recall with controlled neighbour elaboration in the answering phrase';
+    }
+    default: {
+      if (bar === 2 || bar === 6) {
+        degrees = degrees.map((d, i) => i % 2 ? mod(d + (profile.contour < 0 ? -1 : 1), 7) : d);
+      } else if (bar >= 4) {
+        degrees = degrees.map((d, i) => i % 2 ? clamp(d + (phrase % 2 ? -1 : 1), 0, 6) : mod(d + 1, 7));
+      }
+      explanation = 'Thematic motif development with diatonic sequence and neighbour elaboration';
+    }
   }
   gates[0] = 1;
   return { degrees, gates, explanation };

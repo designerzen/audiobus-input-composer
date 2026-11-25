@@ -1,18 +1,38 @@
 import type { EmotionFamily, ResolvedMode } from './types.js';
 
 export const SCALES: Record<ResolvedMode, readonly number[]> = {
-  major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10],
-  dorian: [0, 2, 3, 5, 7, 9, 10], mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  major: [0, 2, 4, 5, 7, 9, 11],
+  minor: [0, 2, 3, 5, 7, 8, 10],
+  dorian: [0, 2, 3, 5, 7, 9, 10],
+  mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  lydian: [0, 2, 4, 6, 7, 9, 11],
+  phrygian: [0, 1, 3, 5, 7, 8, 10],
+  'harmonic-minor': [0, 2, 3, 5, 7, 8, 11],
+  locrian: [0, 1, 3, 5, 6, 8, 10],
 };
-export const EMOTIONS: Record<EmotionFamily, { labels: string[]; colour: string; mode: ResolvedMode; contour: number; gate: number; novelty: number }> = {
-  joy: { labels: ['Serenity', 'Joy', 'Ecstasy'], colour: '#f4d35e', mode: 'major', contour: 1, gate: .75, novelty: .3 },
-  trust: { labels: ['Acceptance', 'Trust', 'Admiration'], colour: '#83b99a', mode: 'major', contour: 0, gate: .95, novelty: .15 },
-  fear: { labels: ['Apprehension', 'Fear', 'Terror'], colour: '#829cf2', mode: 'minor', contour: 0, gate: .45, novelty: .5 },
-  surprise: { labels: ['Distraction', 'Surprise', 'Amazement'], colour: '#6dd6dc', mode: 'mixolydian', contour: 1, gate: .65, novelty: .9 },
-  sadness: { labels: ['Pensiveness', 'Sadness', 'Grief'], colour: '#a996d3', mode: 'minor', contour: -1, gate: .95, novelty: .15 },
-  disgust: { labels: ['Boredom', 'Disgust', 'Loathing'], colour: '#c490ba', mode: 'dorian', contour: -1, gate: .4, novelty: .65 },
-  anger: { labels: ['Annoyance', 'Anger', 'Rage'], colour: '#eb8787', mode: 'minor', contour: 0, gate: .55, novelty: .4 },
-  anticipation: { labels: ['Interest', 'Anticipation', 'Vigilance'], colour: '#edb17b', mode: 'dorian', contour: 1, gate: .65, novelty: .55 },
+
+export type GrooveStyle = 'bright' | 'steady' | 'tense' | 'spark' | 'elegy' | 'angular' | 'driving' | 'propulsive';
+
+export interface EmotionProfile {
+  labels: string[];
+  colour: string;
+  mode: ResolvedMode;
+  contour: number;
+  gate: number;
+  novelty: number;
+  registerOffset: number;
+  groove: GrooveStyle;
+}
+
+export const EMOTIONS: Record<EmotionFamily, EmotionProfile> = {
+  joy: { labels: ['Serenity', 'Joy', 'Ecstasy'], colour: '#f4d35e', mode: 'major', contour: 1, gate: .75, novelty: .3, registerOffset: 2, groove: 'bright' },
+  trust: { labels: ['Acceptance', 'Trust', 'Admiration'], colour: '#83b99a', mode: 'major', contour: 0, gate: .92, novelty: .15, registerOffset: 0, groove: 'steady' },
+  fear: { labels: ['Apprehension', 'Fear', 'Terror'], colour: '#829cf2', mode: 'phrygian', contour: 0, gate: .45, novelty: .55, registerOffset: -2, groove: 'tense' },
+  surprise: { labels: ['Distraction', 'Surprise', 'Amazement'], colour: '#6dd6dc', mode: 'lydian', contour: 1, gate: .62, novelty: .9, registerOffset: 3, groove: 'spark' },
+  sadness: { labels: ['Pensiveness', 'Sadness', 'Grief'], colour: '#a996d3', mode: 'minor', contour: -1, gate: .94, novelty: .15, registerOffset: -3, groove: 'elegy' },
+  disgust: { labels: ['Boredom', 'Disgust', 'Loathing'], colour: '#c490ba', mode: 'locrian', contour: -1, gate: .4, novelty: .65, registerOffset: -3, groove: 'angular' },
+  anger: { labels: ['Annoyance', 'Anger', 'Rage'], colour: '#eb8787', mode: 'harmonic-minor', contour: 0, gate: .52, novelty: .45, registerOffset: -2, groove: 'driving' },
+  anticipation: { labels: ['Interest', 'Anticipation', 'Vigilance'], colour: '#edb17b', mode: 'dorian', contour: 1, gate: .68, novelty: .55, registerOffset: 0, groove: 'propulsive' },
 };
 
 export const mod = (n: number, d: number): number => ((n % d) + d) % d;
@@ -84,19 +104,41 @@ export function intervalVector(mask: number): number[] {
   return counts;
 }
 
-/** Three ordered voices, exhaustive bounded inversion/register search. */
+/** Three- or four-voice ordered voicing search with parallel-fifth/octave avoidance. */
 export function voiceLead(chord: readonly number[], previous: readonly number[] = [60, 64, 67]): number[] {
-  if (chord.length !== 3 || chord.some(p => !Number.isInteger(p)) || previous.length !== 3 || previous.some(p => !Number.isFinite(p)) || new Set(chord.map(p => mod(p, 12))).size !== 3) throw new RangeError('Voice leading requires three distinct pitch classes and three finite previous voices');
-  let best: number[] = [], cost = Infinity;
-  const pcs = [...new Set(chord.map(p => mod(p, 12)))];
-  const choices = pcs.map(pc => Array.from({ length: 25 }, (_, i) => i + 48).filter(p => p % 12 === pc));
-  for (const a of choices[0] ?? []) for (const b of choices[1] ?? []) for (const c of choices[2] ?? []) {
-    const v = [a, b, c].sort((x, y) => x - y);
-    if (v[2] - v[0] > 16) continue;
-    const distance = v.reduce((sum, p, i) => sum + Math.abs(p - (previous[i] ?? p)), 0);
-    if (distance < cost) { cost = distance; best = v; }
+  const n = chord.length;
+  if ((n !== 3 && n !== 4) || chord.some(p => !Number.isInteger(p)) || previous.length < 3 || previous.length > 4 || previous.some(p => !Number.isFinite(p))) {
+    throw new RangeError('Voice leading requires three or four distinct pitch classes and finite previous voices');
   }
-  if (!best.length) throw new RangeError('Provide a three-pitch chord');
+  const pcs = [...new Set(chord.map(p => mod(p, 12)))];
+  if (pcs.length !== n) throw new RangeError('Voice leading requires distinct pitch classes');
+  // Smoothly align previous voicing length when moving between triads and seventh chords.
+  const prev = previous.length === n ? previous : previous.length < n ? [...previous, previous[previous.length - 1] + 3] : previous.slice(0, n);
+  const choices = pcs.map(pc => Array.from({ length: 25 }, (_, i) => i + 48).filter(p => p % 12 === pc));
+  const maxSpan = n === 4 ? 19 : 16;
+  let best: number[] = [], bestCost = Infinity;
+
+  const evaluate = (v: number[]) => {
+    v.sort((x, y) => x - y);
+    if (v[n - 1] - v[0] > maxSpan) return;
+    let cost = 0;
+    for (let i = 0; i < n; i++) cost += Math.abs(v[i] - prev[i]);
+    // Mild penalty for parallel fifths/octaves between outer or adjacent voices.
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const prevInt = mod(prev[j] - prev[i], 12), currInt = mod(v[j] - v[i], 12);
+      if ((currInt === 7 || currInt === 0) && currInt === prevInt && v[i] !== prev[i] && v[j] !== prev[j]) {
+        cost += 2.5;
+      }
+    }
+    if (cost < bestCost) { bestCost = cost; best = v; }
+  };
+
+  if (n === 3) {
+    for (const a of choices[0]) for (const b of choices[1]) for (const c of choices[2]) evaluate([a, b, c]);
+  } else {
+    for (const a of choices[0]) for (const b of choices[1]) for (const c of choices[2]) for (const d of choices[3]) evaluate([a, b, c, d]);
+  }
+  if (!best.length) throw new RangeError('Provide a valid three- or four-pitch chord');
   return best;
 }
 
@@ -105,4 +147,52 @@ export function trainMarkov(sequence: readonly number[], states = 7, alpha = .5)
   const rows = Array.from({ length: states }, () => Array(states).fill(alpha) as number[]);
   for (let i = 1; i < sequence.length; i++) rows[sequence[i - 1]][sequence[i]]++;
   return rows.map(row => { const n = row.reduce((a, b) => a + b, 0); return n ? row.map(x => x / n) : row.map(() => 1 / states); });
+}
+
+export type MotifTransform = 'identity' | 'sequence-up' | 'sequence-down' | 'invert' | 'retrograde';
+
+/** Classical diatonic motif transformations for multi-section development. */
+export function transformMotif(motif: readonly number[], kind: MotifTransform): number[] {
+  if (!motif.length) return [];
+  switch (kind) {
+    case 'sequence-up': return motif.map(d => mod(d + 1, 7));
+    case 'sequence-down': return motif.map(d => mod(d - 1, 7));
+    case 'invert': {
+      const axis = motif[0];
+      return motif.map(d => mod(2 * axis - d, 7));
+    }
+    case 'retrograde': return [...motif].reverse();
+    default: return [...motif];
+  }
+}
+
+const ROMAN_UPPER = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+const ROMAN_LOWER = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii'];
+
+/** Builds a chord symbol and Roman numeral analysis from chord pitches in root position. */
+export function describeChord(chord: readonly number[], rootName: string, degree: number, mode: ResolvedMode): { symbol: string; roman: string } {
+  const third = mod(chord[1] - chord[0], 12);
+  const fifth = mod(chord[2] - chord[0], 12);
+  const seventh = chord.length > 3 ? mod(chord[3] - chord[0], 12) : undefined;
+  const isMinor = third === 3;
+  const isDim = isMinor && fifth === 6;
+  const isAug = third === 4 && fifth === 8;
+
+  let suffix = '';
+  if (isDim) suffix = seventh === 10 ? 'ø7' : seventh === 9 ? '°7' : '°';
+  else if (isAug) suffix = seventh === 11 ? '+maj7' : '+';
+  else if (isMinor) suffix = seventh === 11 ? 'm(maj7)' : seventh === 10 ? 'm7' : 'm';
+  else suffix = seventh === 11 ? 'maj7' : seventh === 10 ? '7' : '';
+
+  const deg = mod(degree, 7);
+  const scaleInterval = SCALES[mode][deg];
+  const majorInterval = SCALES.major[deg];
+  const accidental = scaleInterval < majorInterval ? '♭' : scaleInterval > majorInterval ? '♯' : '';
+  const numeral = (isMinor || isDim ? ROMAN_LOWER : ROMAN_UPPER)[deg];
+  const romanSuffix = isDim ? (seventh === 10 ? 'ø7' : seventh === 9 ? '°7' : '°')
+    : isAug ? '+'
+    : seventh === 11 ? 'maj7'
+    : seventh === 10 ? '7' : '';
+
+  return { symbol: `${rootName}${suffix}`, roman: `${accidental}${numeral}${romanSuffix}` };
 }
