@@ -56,11 +56,15 @@ See the [API and integration guide](docs/implementation.md) for options, events,
 
 [The deployment workflow](.github/workflows/deploy.yml) builds and tests the library and web component, then publishes `site/` to GitHub Pages on pushes to `main` or manual dispatch. Enable **Settings → Pages → Source → GitHub Actions** in the repository, then push the files to `main`. The workflow's deployment environment reports the resulting URL. Its relative asset paths support repository subdirectories and custom domains.
 
-The deployed site includes standalone ESM modules under `library/` for embedding. [Continuous integration](.github/workflows/ci.yml) runs type checks, unit tests, production builds and desktop/mobile browser tests on pull requests. The workflows do not publish a package to npm.
+The deployed site includes the genre gallery (`gallery.html`) and standalone ESM modules under `library/` for embedding. The demo page keeps the selected settings in its URL, so a link reproduces the same music. [Continuous integration](.github/workflows/ci.yml) runs type checks, unit tests, production builds and desktop/mobile browser tests on pull requests. The workflows do not publish a package to npm.
 
 ## Implemented musical foundation
 
 Thirteen genre idioms (pop, house, techno, boom-bap, trap, jazz, bossa nova, reggae, rock, galant, minimalist, ambient and chiptune) set groove, harmony, part behaviour and form. Seven material engines—motif development, Markov memory, Game of Life, evolutionary search, Fibonacci rewriting, Euclidean patterns and torus walks—propose melodies; the one closest to the emotion's tension curve is kept. See [the implementation notes](docs/implementation.md#genres). It provides an eight-bar presentation/answer structure, dominant preparation and tonic cadence, major/minor/modal collections, chord-tone anchors, motif elaboration, bounded contour, three-voice inversion search, bass roles, percussion activity and swing.
+
+Each genre also has a timing feel: a laid-back boom-bap snare, a jazz melody behind the ride, machine-tight techno. The feel is stored beside each note's notated start and played by the transport and MIDI export. A change of key, from a section's key lift or from the controls while playing, is prepared by the new key's dominant in the last bar. A connected MIDI keyboard can lead: the composer follows the key you play, and your last notes can become its theme.
+
+`scoreMetrics(score)` measures what the generator does to the music (chord tones on strong beats, syncopation, repetition, pitch variety, range, widest leap, parallels, density, timing looseness). The tests hold every genre to bounds on these. [The gallery page](gallery.html) shows every genre and emotion side by side with these measures and plays any of them.
 
 The Plutchik interface retains PhotoSYNTH's original 32 SVG paths and maps them to 24 named selections. Energy remains independent of intensity. Scores preserve part, degree, motif and decision provenance; exports provide MIDI and JSON. Live performance logs preserve phrase snapshots and actual MIDI dispatches.
 

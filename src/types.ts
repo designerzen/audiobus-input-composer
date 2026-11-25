@@ -9,8 +9,11 @@ export const PARTS = ['melody', 'bass', 'harmony', 'percussion'] as const;
 export type Part = typeof PARTS[number];
 export const GENRES = ['pop', 'house', 'techno', 'boom-bap', 'trap', 'jazz', 'bossa', 'reggae', 'rock', 'galant', 'minimal', 'ambient', 'chiptune'] as const;
 export type Genre = typeof GENRES[number];
-/** Closed cadences end on the tonic; half and deceptive cadences, and open loops, ask for another phrase. */
-export const CADENCES = ['authentic', 'plagal', 'arrival', 'half', 'deceptive', 'open'] as const;
+/**
+ * Closed cadences end on the tonic; half and deceptive cadences, and open loops, ask for another phrase.
+ * A modulating cadence ends on the dominant of the next phrase's key.
+ */
+export const CADENCES = ['authentic', 'plagal', 'arrival', 'half', 'deceptive', 'open', 'modulating'] as const;
 export type Cadence = typeof CADENCES[number];
 
 export interface ComposerOptions {
@@ -28,6 +31,8 @@ export interface ComposerOptions {
   parts: Part[];
   /** Send General MIDI Program Change hints for the genre's instruments. */
   programs: boolean;
+  /** Theme as 2–8 scale degrees (0–6), such as one captured from a player; otherwise the seed invents one. */
+  motif?: number[];
 }
 
 export interface NoteEvent {
@@ -38,6 +43,8 @@ export interface NoteEvent {
   start: number;
   duration: number;
   velocity: number;
+  /** Performance offset from the notated start, in beats; positive is late. The genre's feel. */
+  timing?: number;
   degree?: number;
   reason: string;
   motifId: string;
@@ -50,7 +57,7 @@ export interface BarPlan {
   roman?: string;
   degree: number;
   pitches: number[];
-  function: 'presentation' | 'continuation' | 'half cadence' | 'deceptive cadence' | 'cadence';
+  function: 'presentation' | 'continuation' | 'half cadence' | 'deceptive cadence' | 'cadence' | 'modulation';
   /** Estimated tension of the chosen bar, 0–1. */
   tension: number;
   /** Tension the emotion and energy asked for. */

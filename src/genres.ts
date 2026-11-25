@@ -25,6 +25,18 @@ export interface Section {
 }
 
 export interface Patterns { low: string; mid: string; high: string }
+
+/** How the idiom places notes against the grid (docs/theory: microtiming). Offsets are in beats. */
+export interface Feel {
+  /** Push per part; positive is laid back, negative is on top of the beat. */
+  parts?: Readonly<Partial<Record<Part, number>>>;
+  /** Push per drum, keyed by General MIDI note, added to the percussion push. */
+  drums?: Readonly<Record<number, number>>;
+  /** Largest seeded timing deviation; 0 is machine-tight. */
+  jitter: number;
+  /** Depth of metrical accents on pitched parts, 0 flat to 1 strongly shaped. */
+  accent: number;
+}
 export type DrumKit = Readonly<Record<number, string>>;
 
 export interface GenreProfile {
@@ -51,8 +63,7 @@ export interface GenreProfile {
   /** Sustain a repeated chord across bars instead of re-attacking it. */
   hold?: boolean;
   drums: { low: DrumKit; mid: DrumKit; high: DrumKit } | 'pop' | null;
-  /** Per-drum timing push in beats (positive is late, laid back). */
-  feel?: Readonly<Record<number, number>>;
+  feel: Feel;
   melody: { density: number; gate: number; register: number; rest?: readonly number[] };
   form: readonly Section[];
   /** General MIDI programs, zero-based. */
@@ -80,6 +91,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
     label: 'Pop', tempo: [90, 120], grid: 8, swing8: 0, swing16: 0, modes: [],
     harmony: 'emotion', reharm: .25, ext: [0, 1], cadence: 'functional',
     bass: 'pop', comp: 'pop', voicing: 'full', drums: 'pop',
+    feel: { jitter: .006, accent: .6 },
     melody: { density: 1, gate: 1, register: 0 }, form: STANDARD_FORM,
     programs: { melody: 0, bass: 33, harmony: 4 },
   },
@@ -94,6 +106,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 36: 'X...x...x...x...', 39: '....x.......x...', 46: '..x...x...x...x.', 42: 'o...o...o...o...' },
       high: { 36: 'X...x...x...x...', 39: '....x.......x...', 46: '..x...x...x...x.', 42: 'x.g.x.g.x.g.x.g.', 70: 'gxgxgxgxgxgxgxgx' },
     },
+    feel: { jitter: 0, accent: .3, drums: { 46: .01 } },
     melody: { density: .7, gate: .8, register: 0 },
     form: [
       { name: 'Intro', role: 'establish', parts: ['percussion', 'bass'], energy: -.1 },
@@ -114,6 +127,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 36: 'X...x...x...x...', 42: '..x...x...x...x.', 37: '...g......g.....' },
       high: { 36: 'X...x...x...x...', 46: '..x...x...x...x.', 42: 'xxgxxxgxxxgxxxgx', 39: '....x.......x...', 37: '...g..g...g..g..' },
     },
+    feel: { jitter: 0, accent: .2 },
     melody: { density: .5, gate: .45, register: -2, rest: [0, 1, 2, 3] },
     form: [
       { name: 'Intro', role: 'establish', parts: ['percussion'] },
@@ -134,7 +148,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 36: 'X.....x...x.....', 38: '....X.......X...', 42: 'x.x.x.x.x.x.x.x.', 37: '.......g......g.' },
       high: { 36: 'X.....x.x.x...x.', 38: '....X..g....X...', 42: 'xgxgxgxgxgxgxgxg' },
     },
-    feel: { 38: .02, 39: .02 },
+    feel: { jitter: .012, accent: .8, parts: { bass: .015, harmony: .02 }, drums: { 38: .035, 39: .035, 42: .012 } },
     melody: { density: .55, gate: .7, register: 0 },
     form: [
       { name: 'Verse', role: 'establish', energy: -.05 },
@@ -155,6 +169,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 36: 'X.....x...x.....', 38: '........X.......', 42: 'x.x.x.x.x.xrx.x.' },
       high: { 36: 'X.....x..x.x..x.', 38: '........X.......', 42: 'xxxxxrxxxxxxrxrx', 46: '..............x.' },
     },
+    feel: { jitter: 0, accent: .4 },
     melody: { density: .6, gate: .5, register: 5 },
     form: [
       { name: 'Intro', role: 'establish', parts: ['harmony', 'melody'], energy: -.2 },
@@ -175,7 +190,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 51: 'x..x.xx..x.x', 42: '...x.....x..', 38: '........g...' },
       high: { 51: 'X..x.xX..x.x', 42: '...x.....x..', 36: 'g.....g.....', 38: '.....g..x..g' },
     },
-    feel: { 51: .01 },
+    feel: { jitter: .01, accent: .7, parts: { melody: .025, harmony: .02, bass: -.008 }, drums: { 51: -.01, 42: .005 } },
     melody: { density: .7, gate: .85, register: 0 },
     form: AABA,
     programs: { melody: 66, bass: 32, harmony: 0 },
@@ -191,6 +206,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 37: 'x..x..x...x..x..', 70: 'xgxgxgxgxgxgxgxg', 36: 'x.....x.x.....x.' },
       high: { 37: 'x..x..x...x..x..', 70: 'xgxgxgxgxgxgxgxg', 36: 'x.....x.x.....x.', 42: '..x...x...x...x.' },
     },
+    feel: { jitter: .006, accent: .6, parts: { melody: .015 } },
     melody: { density: .6, gate: .85, register: 0 },
     form: AABA,
     programs: { melody: 73, bass: 32, harmony: 24 },
@@ -206,6 +222,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 37: '........x.......', 36: '........x.......', 42: '..x...x...x...x.' },
       high: { 36: '........X.......', 38: '........X.......', 42: 'x.x.x.x.x.x.xxx.', 46: '..............x.' },
     },
+    feel: { jitter: .01, accent: .7, parts: { harmony: .015, bass: .01 }, drums: { 36: .02, 37: .02, 38: .02 } },
     melody: { density: .55, gate: .7, register: 0 },
     form: [
       { name: 'Verse', role: 'establish' },
@@ -226,6 +243,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 36: 'X.....x.x.......', 38: '....X.......X...', 42: 'x.x.x.x.x.x.x.x.' },
       high: { 36: 'X.....x.x.x.....', 38: '....X.......X...', 46: 'x.x.x.x.x.x.x.x.' },
     },
+    feel: { jitter: .008, accent: .7, drums: { 36: -.008, 38: -.008, 42: -.005, 46: -.005 } },
     melody: { density: .65, gate: .85, register: 0 },
     form: [
       { name: 'Verse', role: 'establish', energy: -.05 },
@@ -241,6 +259,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
     bass: { low: 'R-------R-------', mid: 'R---R---R---R---', high: 'R-R-R-R-R-R-R-R-' },
     comp: { low: 'C---------------', mid: 'L-L-L-L-L-L-L-L-', high: 'LLLLLLLLLLLLLLLL' },
     voicing: 'full', drums: null,
+    feel: { jitter: .008, accent: .9, parts: { melody: .01 } },
     melody: { density: .7, gate: .9, register: 2 },
     form: STANDARD_FORM,
     programs: { melody: 73, bass: 42, harmony: 6 },
@@ -256,6 +275,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 37: 'x.x.x.x.x.x.x.x.' },
       high: { 37: 'x.xxx.x.x.xxx.x.', 36: 'x.......x.......' },
     },
+    feel: { jitter: 0, accent: .2 },
     melody: { density: .5, gate: .6, register: 0, rest: [0, 1] },
     form: [
       { name: 'Process A', role: 'establish' },
@@ -271,6 +291,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
     bass: { low: 'R---------------', mid: 'R---------------', high: 'R-------R-------' },
     comp: { low: 'C---------------', mid: 'C---------------', high: 'C-------C-------' },
     voicing: 'full', drums: null,
+    feel: { jitter: .02, accent: .3, parts: { melody: .03 } },
     melody: { density: .35, gate: 1.6, register: 3 },
     form: [
       { name: 'Drift', role: 'establish' },
@@ -292,6 +313,7 @@ export const GENRE_PROFILES: Readonly<Record<Genre, GenreProfile>> = {
       mid: { 36: 'x...x...x...x...', 38: '....x.......x...', 42: '..x...x...x...x.' },
       high: { 36: 'x..xx...x..xx...', 38: '....x.......x.xx', 42: 'xxxxxxxxxxxxxxxx' },
     },
+    feel: { jitter: 0, accent: .3 },
     melody: { density: .8, gate: .6, register: 5 },
     form: STANDARD_FORM,
     programs: { melody: 80, bass: 38, harmony: 81 },

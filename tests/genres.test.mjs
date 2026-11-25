@@ -226,10 +226,10 @@ test('finish continues past an open phrase to the next closed cadence', () => {
 
 test('golden scores change only deliberately', () => {
   const digest = options => createHash('sha256').update(JSON.stringify(compose(options))).digest('hex').slice(0, 16);
-  assert.equal(GENERATOR_VERSION, '0.2.0', 'bump the version and these digests together');
+  assert.equal(GENERATOR_VERSION, '0.3.0', 'bump the version and these digests together');
   const actual = Object.fromEntries(['pop', 'jazz', 'galant', 'house', 'ambient'].map(genre => [genre, digest({ genre, seed: 'golden', bars: 16 })]));
   assert.deepEqual(actual, GOLDEN);
 });
 
 // Regenerate only when a musical change is intended, and bump GENERATOR_VERSION with it.
-const GOLDEN = { pop: '6096f2e538175195', jazz: '6f11abad62de2d61', galant: '2b3841b54f334dff', house: '3fc6d4eb76b92c0f', ambient: '629b901873e0685d' };
+const GOLDEN = { pop: 'ac9ea921e63497be', jazz: '6a816be967bec00a', galant: 'ee27eb7de501fb2d', house: 'ef1cba5496dc7001', ambient: '5931c3faa79bac34' };

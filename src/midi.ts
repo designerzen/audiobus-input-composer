@@ -1,5 +1,6 @@
 import type { MidiOutputAdapter, MidiSink, Score } from './types.js';
 import { validateEvents } from './composer.js';
+import { clamp } from './theory.js';
 
 /** No clock extension is assumed: call only when the local scheduler says a message is due. */
 export const audioBusOutput = (peer: MidiSink): MidiOutputAdapter => ({ label: 'AudioBus', send: bytes => peer.sendMidi(bytes) });
@@ -24,9 +25,10 @@ const metaText = (type: number, text: string): number[] => {
 
 /**
  * Format-0 Standard MIDI File, 480 PPQ, explicit note-offs, section/chord markers, program changes and a
- * fixed export tempo. Notes ringing past the score's end are cut at the end.
+ * fixed export tempo. Notes ringing past the score's end are cut at the end. By default notes carry the
+ * genre's timing feel; pass { feel: false } for a quantised file.
  */
-export function scoreToMidi(score: Score): Uint8Array {
+export function scoreToMidi(score: Score, { feel = true }: { feel?: boolean } = {}): Uint8Array {
   validateEvents(score.events);
   if (!Number.isFinite(score.options.tempo) || score.options.tempo < 30 || score.options.tempo > 240) throw new RangeError('Invalid export tempo');
   if (!Number.isFinite(score.length) || score.length <= 0 || score.length * 480 > 0x0fffffff || score.events.some(e => e.start >= score.length)) throw new RangeError('Invalid export score length');
@@ -47,7 +49,8 @@ export function scoreToMidi(score: Score): Uint8Array {
   }
   // Retrigger policy matches live transport. Superseded gates never release a newer note.
   const addresses = new Map<string, typeof score.events>();
-  for (const event of score.events) { const key = `${event.channel}:${event.pitch}`; const list = addresses.get(key) ?? []; list.push(event); addresses.set(key, list); }
+  const performed = feel ? score.events.map(e => e.timing ? { ...e, start: clamp(e.start + e.timing, 0, score.length - 1 / 480) } : e) : score.events;
+  for (const event of performed) { const key = `${event.channel}:${event.pitch}`; const list = addresses.get(key) ?? []; list.push(event); addresses.set(key, list); }
   for (const list of addresses.values()) {
     list.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
     for (let i = 0; i < list.length; i++) {

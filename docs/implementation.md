@@ -40,6 +40,7 @@ All options are optional. `normalizeOptions` supplies defaults and rejects malfo
 | `swing` | Delay of odd eighth-note slots in beats, 0–0.45, added to the genre's own swing; 0 |
 | `parts` | Unique subset of `melody`, `bass`, `harmony`, `percussion`; all four. Empty means silence. Genre sections may rest some of them. |
 | `programs` | Send General MIDI Program Change hints for the genre's instruments; `false` |
+| `motif` | Optional theme of 2–8 scale degrees (0–6), such as a played line; otherwise the seed invents one |
 
 Time is measured in quarter-note beats. Current phrases are eight bars of 4/4. MIDI channels are 1 melody, 2 bass, 3 harmony and 10 percussion. Melody events carry degree annotations; other events preserve musical reasons. IDs combine phrase, part and serial identity. Bars annotate chord, Roman numeral, phrase function, the chosen bar's estimated tension and the target tension. Phrases record genre, section, tonic (after any key lift), mode, cadence and whether it closes.
 
@@ -93,11 +94,23 @@ Each melody bar is proposed four times by the selected engine (canonical, denser
 
 Returning sections reuse the cycle's opening harmony and melodic material and re-elaborate the weak eighths (passing, neighbour, anticipation or arpeggiation, chosen by emotion), so a return is recognisably the same tune with a new surface.
 
-These are engineering rules for musical profiles, not style-authentic performance models. There is no general species-counterpoint solver, modulation planner, learned model, automatic score follower or non-Western style model. The research folder's 115 methods and thirteen theory studies are not all implemented APIs.
+When the next phrase is in another key or mode (a section's key lift, such as rock's last chorus, or a change made while playing), the last bar becomes the dominant seventh of the new key, labelled `modulation` with the cadence `modulating`. Such a phrase is not closed. Live, the session recomposes the last bar when a key or mode change is pending half a beat before it; a change made later arrives at the boundary unprepared.
+
+These are engineering rules for musical profiles, not style-authentic performance models. There is no general species-counterpoint solver, learned model or non-Western style model, and modulation is limited to a dominant into the next key. The research folder's 115 methods and thirteen theory studies are not all implemented APIs.
+
+### Timing feel
+
+Each genre profile has a `feel`: a timing push per part and per drum (positive is laid back), a seeded jitter (0 for machine idioms) and a metrical accent depth that makes pitched downbeats louder than offbeats. The composer stores the result as `NoteEvent.timing`, in beats beside the notated `start`, clamped to −0.05…0.08. Analysis, tests and the piano roll use the notated grid. `Transport` plays `start + timing` (never before the score's start or a replacement point), and `scoreToMidi(score)` writes the performed times; `scoreToMidi(score, { feel: false })` writes a quantised file.
+
+### Musical measures
+
+`scoreMetrics(score)` returns chord tones on strong beats, syncopation (mean metrical weakness of melody and bass onsets), repetition (share of melody bars whose interval and rhythm shape occurred earlier), pitch-class entropy, range, widest leap within a phrase, parallel fifths and octaves between chord voicings, attacks per bar and mean timing offset per part. `tests/musicality.test.mjs` holds every genre to bounds on these and checks relationships between idioms, so a change that makes the music worse fails even when it is deliberate. The bounds came from measuring the generator, so they guard against regressions; they are not listener judgements. `gallery.html` shows the measures for every genre and emotion and plays each one.
+
+Measuring found two faults that are now fixed: folding into range could leave leaps of up to 17 semitones (now at most an octave), and returning sections varied every bar, so almost nothing recurred (they now restate the first two bars of each half literally).
 
 ### Standalone theory tools
 
-Core exports also include `GENRE_PROFILES`, `genreTempo`, `planHarmony`, `realiseChord`, `reharmonise`, `resolveMode`, `targetTension`, `elaborate`, `random` (FNV-1a/Mulberry32), `weighted`, `degreePitch`, `euclidean`, `lifeStep`, `trainMarkov`, `evolveMotif`, `voiceLead`, `pitchMask`, `quantize` and `intervalVector`. `voiceLead` accepts exactly three distinct pitch classes and three previous voices. Quantization works on MIDI 0–127, resolves nearest ties downward and returns `undefined` for an empty collection. The Life function supports dead or wrapped boundaries, independently of its musical readout.
+Core exports also include `scoreMetrics`, `phraseKey`, `estimateKey`, `MidiFollower`, `GENRE_PROFILES`, `genreTempo`, `planHarmony`, `realiseChord`, `reharmonise`, `resolveMode`, `targetTension`, `elaborate`, `random` (FNV-1a/Mulberry32), `weighted`, `degreePitch`, `euclidean`, `lifeStep`, `trainMarkov`, `evolveMotif`, `voiceLead`, `pitchMask`, `quantize` and `intervalVector`. `voiceLead` accepts exactly three distinct pitch classes and three previous voices. Quantization works on MIDI 0–127, resolves nearest ties downward and returns `undefined` for an empty collection. The Life function supports dead or wrapped boundaries, independently of its musical readout.
 
 ## AudioBus and playback
 
@@ -120,7 +133,20 @@ The AudioBus adapter dispatches immediately when the local scheduler says a mess
 
 Overlapping same-channel/same-pitch events use explicit release/retrigger. An old event's pending release cannot stop the newer owner. Stop and output replacement cancel queued attacks and release every owned address without channel-wide panic. Use dedicated channels when sharing an instrument. An output that is already disconnected may not receive releases; the host must implement receiver-side recovery. Core consumers must stop on their own disconnect, hidden-tab and lifecycle signals. The web component already handles page hiding, removal and MIDI disconnect.
 
-`webMidiOutput(midiOutput)` adapts a browser MIDIOutput, with timestamps and `clear()`. Permission is requested only through the component's Connect MIDI option or an explicit host request. The first version uses MIDI 1.0 semitones, with no pitch-bend allocation, UMP negotiation, external MIDI clock or tempo-following capability.
+`webMidiOutput(midiOutput)` adapts a browser MIDIOutput, with timestamps and `clear()`. Permission is requested only through the component's Connect MIDI option or an explicit host request. The first version uses MIDI 1.0 semitones, with no pitch-bend allocation or UMP negotiation.
+
+### Following a player
+
+`MidiFollower` reads incoming MIDI bytes. MIDI clock (24 pulses per quarter note) arrives as `onClock(1/24)`, ready for a host-clocked session's `advance()`, with `onStart`, `onContinue` and `onStop` for transport messages. Played notes feed a decaying pitch-class histogram (velocity on attack, duration on release, 8 s half-life). After six notes, Krumhansl–Schmuckler key finding reports a key through `onKey` when it changes and its profile correlation is at least 0.6. `motif(root, mode, length)` turns the last played line (the top note of each chord) into scale degrees for `ComposerOptions.motif`, which replaces the seeded theme. `estimateKey(weights)` is available on its own.
+
+```js
+const session = new ComposerSession({}, output, {}, { clock: 'host' });
+const follower = new MidiFollower({
+  onClock: beats => session.advance(beats), onStart: () => session.start(), onStop: () => session.stop(),
+  onKey: key => session.update({ root: key.root, mode: key.mode }),
+});
+midiInput.onmidimessage = event => follower.receive(event.data);
+```
 
 ### Continuous sessions
 
@@ -138,7 +164,7 @@ session.finish(); // Stops after the next closed cadence
 // session.stop(); // Immediate cancellation and owned-note release
 ```
 
-`session.options` is the selected target, `session.applied` the current snapshot, `session.pending` says whether bar-level or phrase-level changes are waiting, and `session.beat` is the position within the current phrase. Energy, swing and ensemble recompose the rest of the phrase from the next bar line (at most once per bar, reported through `onRevise`); harmony and form are unchanged by them. Every other control, including tempo and genre, applies at the next phrase. Phrases chain at the exact boundary, so the internal clock does not drift and pads can ring across it. `finish()` stops after the next closed cadence; if the current phrase is open, one closing phrase follows. The finite `bars` option does not limit continuous sessions.
+`session.options` is the selected target, `session.applied` the current snapshot, `session.pending` says whether bar-level or phrase-level changes are waiting, and `session.beat` is the position within the current phrase. Energy, swing and ensemble recompose the rest of the phrase from the next bar line (at most once per bar, reported through `onRevise`); harmony and form are unchanged by them. Every other control, including tempo and genre, applies at the next phrase; a pending key or mode change also turns the current phrase's last bar into the new key's dominant. Phrases chain at the exact boundary, so the internal clock does not drift and pads can ring across it. `finish()` stops after the next closed cadence; if the current phrase is open, one closing phrase follows. The finite `bars` option does not limit continuous sessions.
 
 `session.recording` returns a cloned performance record: resolved phrase snapshots with monotonic start observations and actual MIDI dispatch records. Capture is bounded to 1,024 phrases / 100,000 dispatches; `truncated` flags an exceeded bound. Dispatch time measures the sender, not the receiver's acoustic onset. Phrase snapshots include planned events even if playback stopped early; dispatches identify messages actually sent. Fixed-tempo score replay uses `Transport.start(savedScore)`. Variable-tempo live recordings are logs, not a file the current transport automatically replays.
 
@@ -155,7 +181,7 @@ Importing the component entry registers it idempotently. `defineComposer()` is a
 
 Attributes: `seed`, `emotion`, `intensity`, `energy`, `algorithm`, `genre`, `tempo`, `root`, `mode`, `swing`. Choosing a genre in the panel also suggests its usual tempo, except when the host owns tempo. Numeric attributes use the same ranges as the library. The `options` property accepts a partial update including `parts` or `bars`; `configure(patch)` does the same. Property changes do not reflect back into HTML attributes. `score` returns a clone of the displayed resolved plan, `recording` returns the performance log, and `playing` reports transport state.
 
-Methods: `start()` (async; browser audition needs a user gesture), `stop()`, `finish()`, `configure(patch)`, `connectPeer(peer)`, `setOutput(adapter)` and `connectMidi()` (async). Assigning `element.peer = peer` attaches an existing AudioBus Peer and selects that output; clearing it returns to browser audition. Custom output adapters implement `send(bytes)` and optionally `label`. Output changes stop the current performance.
+Methods: `start()` (async; browser audition needs a user gesture), `stop()`, `finish()`, `configure(patch)`, `connectPeer(peer)`, `setOutput(adapter)`, `connectMidi()` (async), `connectMidiInput()` (async) and `usePlayedTheme()`. The panel's Follow MIDI input control listens to a keyboard and sets tonic and mode from the key it hears, at the next phrase; Use played theme sets `motif` from the last four notes played, and a new seed clears it. The component does not follow external MIDI clock; hosts can do that with `MidiFollower` and the host clock. Assigning `element.peer = peer` attaches an existing AudioBus Peer and selects that output; clearing it returns to browser audition. Custom output adapters implement `send(bytes)` and optionally `label`. Output changes stop the current performance.
 
 | Bubbling, composed event | `detail` |
 | --- | --- |
@@ -169,7 +195,7 @@ The star preserves all source regions; aliases select the same named emotion. Cl
 
 Browser audition is a small optional Web Audio renderer for checking musical output; it is separate from the composition library. The volume control affects only that renderer. MIDI and AudioBus receivers supply their own instruments and level controls. Browser tests exercise audition lifecycle and output dispatch; they do not establish subjective sound quality or measured acoustic latency.
 
-Score JSON/MIDI exports contain the current plan (the first 16-bar preview initially, or the current eight-bar phrase while/after live playback). MIDI export is format 0, 480 PPQ with fixed tempo, 4/4 and explicit note-offs. It supplies notes and channels; it includes Program Change hints only when `programs` is on. Notes that ring past the score's end are cut there. Save performance log exports phrase snapshots and dispatches, not a recording of audio.
+Score JSON/MIDI exports contain the current plan (the first 16-bar preview initially, or the current eight-bar phrase while/after live playback). MIDI export is format 0, 480 PPQ with fixed tempo, 4/4 and explicit note-offs, with the genre's timing feel unless `{ feel: false }` is passed. It supplies notes and channels; it includes Program Change hints only when `programs` is on. Notes that ring past the score's end are cut there. Save performance log exports phrase snapshots and dispatches, not a recording of audio.
 
 ## Deployment and checks
 

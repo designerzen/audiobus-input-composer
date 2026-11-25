@@ -1,10 +1,11 @@
 import { ALGORITHMS, FAMILIES, GENRES, PARTS, type ComposerOptions, type DispatchRecord, type EmotionFamily, type Genre, type MidiOutputAdapter, type MidiSink, type Mode, type Phrase, type Score } from '../types.js';
 import { GENRE_PROFILES, genreTempo } from '../genres.js';
 import { GENERATOR_VERSION } from '../version.js';
-import { compose, DEFAULT_OPTIONS, normalizeOptions, pitchName } from '../composer.js';
+import { compose, DEFAULT_OPTIONS, normalizeOptions, phraseKey, pitchName } from '../composer.js';
 import { EMOTIONS, clamp, mod } from '../theory.js';
 import { audioBusOutput, scoreToMidi, webMidiOutput } from '../midi.js';
 import { ComposerSession, type PerformanceRecord } from '../session.js';
+import { MidiFollower } from '../input.js';
 import { PLUTCHIK_ART } from './plutchik-art.js';
 import { STYLES } from './styles.js';
 import { PreviewSynth } from './preview-synth.js';
@@ -41,6 +42,9 @@ export class AudioBusComposer extends HTMLElement {
   private playToken = 0;
   private midiAccess?: MIDIAccess;
   private midiPort?: MIDIOutput;
+  private midiInput?: MIDIInput;
+  /** Follows the key of a connected player and keeps their last notes as a possible theme. */
+  private follower = new MidiFollower({ onKey: key => this.followKey(key.root, key.mode) });
   private peerValue?: MidiSink;
   private ready = false;
   private lastBarDrawn = -1;
@@ -98,6 +102,7 @@ export class AudioBusComposer extends HTMLElement {
     if (this.hosted) return;
     this.stop('disconnected'); this.synth.dispose();
     if (this.midiAccess) this.midiAccess.onstatechange = null;
+    this.listenTo(undefined);
     this.midiAccess = undefined; this.midiPort = undefined;
     this.output = this.synth; this.session.setOutput(this.synth);
   }
@@ -143,6 +148,28 @@ export class AudioBusComposer extends HTMLElement {
     this.updateStatus('output-changed');
   }
   async connectMidi(): Promise<void> {
+    await this.requestMidi();
+    const first = [...this.midiAccess!.outputs.values()].find(port => port.state === 'connected');
+    if (!first) throw new Error('No MIDI outputs found. Connect an instrument and try again.');
+    this.midiPort = first; this.setOutput(webMidiOutput(first)); this.refreshOutputs(first.id);
+  }
+  /** Listen to the first connected MIDI input: follow its key, and keep its notes for "Use played theme". */
+  async connectMidiInput(): Promise<void> {
+    await this.requestMidi();
+    const first = [...this.midiAccess!.inputs.values()].find(port => port.state === 'connected');
+    if (!first) throw new Error('No MIDI inputs found. Connect a keyboard and try again.');
+    this.listenTo(first); this.refreshInputs(first.id);
+  }
+  /** Use the last notes played on the MIDI input as the theme from the next phrase. */
+  usePlayedTheme(): void {
+    const { root, mode } = phraseKey(this.state, 0);
+    const motif = this.follower.motif(root, mode, 4);
+    if (!motif) throw new Error('Play a few notes on the MIDI input first.');
+    this.configure({ motif });
+  }
+
+  private async requestMidi(): Promise<void> {
+    if (this.midiAccess) return;
     if (!navigator.requestMIDIAccess) throw new Error('Web MIDI is unavailable. Use browser audition or attach an AudioBus Peer.');
     this.midiAccess = await navigator.requestMIDIAccess({ sysex: false });
     this.midiAccess.onstatechange = () => {
@@ -150,10 +177,28 @@ export class AudioBusComposer extends HTMLElement {
         this.stop('MIDI disconnected'); this.midiPort = undefined;
         this.setOutput(this.synth); this.refreshOutputs('internal');
       }
+      if (this.midiInput?.state === 'disconnected') { this.listenTo(undefined); this.refreshInputs('none'); }
     };
-    const first = [...this.midiAccess.outputs.values()].find(port => port.state === 'connected');
-    if (!first) throw new Error('No MIDI outputs found. Connect an instrument and try again.');
-    this.midiPort = first; this.setOutput(webMidiOutput(first)); this.refreshOutputs(first.id);
+  }
+  private listenTo(port: MIDIInput | undefined): void {
+    if (this.midiInput) this.midiInput.onmidimessage = null;
+    this.midiInput = port; this.follower.reset();
+    if (port) port.onmidimessage = event => { if (event.data) this.follower.receive(event.data); };
+    const capture = this.view.getElementById('capture') as HTMLButtonElement | null;
+    if (capture) capture.disabled = !port;
+  }
+  private followKey(root: number, mode: 'major' | 'minor'): void {
+    if (root === this.state.root && mode === this.state.mode) return;
+    this.configure({ root, mode });
+    this.setText('input-label', `Following ${pitchName(root + 60).slice(0, -1)} ${mode}`);
+  }
+  private refreshInputs(selected: string): void {
+    const el = this.view.querySelector<HTMLSelectElement>('[name=input]');
+    if (!el) return;
+    el.innerHTML = '<option value="none">Off</option><option value="request-midi-in">Connect MIDI input…</option>';
+    for (const port of this.midiAccess?.inputs.values() ?? []) if (port.state === 'connected') el.add(new Option(port.name ?? 'MIDI input', port.id));
+    el.value = selected;
+    this.setText('input-label', selected === 'none' ? 'Play along: the composer follows your key.' : 'Listening for your key…');
   }
 
   private makeSession(): ComposerSession {
@@ -281,7 +326,15 @@ export class AudioBusComposer extends HTMLElement {
         const genre = input.value as Genre;
         this.configure(this.hosted ? { genre } : { genre, tempo: genreTempo(genre) });
       } else if (input.dataset.part) this.configure({ parts: [...this.view.querySelectorAll<HTMLInputElement>('input[data-part]:checked')].map(el => el.dataset.part as typeof PARTS[number]) });
-      else if (input.name === 'output') {
+      else if (input.name === 'input') {
+        if (input.value === 'request-midi-in') await this.connectMidiInput();
+        else if (input.value === 'none') { this.listenTo(undefined); this.refreshInputs('none'); }
+        else {
+          const port = this.midiAccess?.inputs.get(input.value);
+          if (!port || port.state !== 'connected') throw new Error('MIDI input is disconnected');
+          this.listenTo(port); this.refreshInputs(port.id);
+        }
+      } else if (input.name === 'output') {
         if (input.value === 'request-midi') await this.connectMidi();
         else if (input.value === 'internal') { this.midiPort = undefined; this.setOutput(this.synth); }
         else if (input.value === 'silent') { this.midiPort = undefined; this.setOutput({ label: 'Events only', send: () => {} }); }
@@ -298,6 +351,7 @@ export class AudioBusComposer extends HTMLElement {
     } catch (e) {
       this.syncControls();
       if (input.name === 'output') { this.midiPort = undefined; this.setOutput(this.synth); this.refreshOutputs('internal'); }
+      if (input.name === 'input') { this.listenTo(undefined); this.refreshInputs('none'); }
       this.reportError(e);
     }
   }
@@ -311,7 +365,8 @@ export class AudioBusComposer extends HTMLElement {
       case 'start': void this.start(); break;
       case 'stop': this.stop(); break;
       case 'finish': this.finish(); break;
-      case 'reroll': this.configure({ seed: `theme-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}` }); break;
+      case 'reroll': this.configure({ seed: `theme-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`, motif: undefined }); break;
+      case 'capture': try { this.usePlayedTheme(); } catch (e) { this.reportError(e); } break;
       case 'midi': this.download(scoreToMidi(this.scoreValue), 'composition.mid', 'audio/midi'); break;
       case 'json': this.download(JSON.stringify(this.scoreValue, null, 2), 'composition.json', 'application/json'); break;
       case 'recording': this.download(JSON.stringify(this.recording, null, 2), 'performance.json', 'application/json'); break;
@@ -373,7 +428,7 @@ export class AudioBusComposer extends HTMLElement {
     svg += `<line id="playhead" class="playhead" x1="${left}" x2="${left}" y1="12" y2="184"/></svg>`;
     this.view.getElementById('roll')!.innerHTML = svg;
     this.view.getElementById('chords')!.innerHTML = phrase.bars.map((bar, i) =>
-      `<div class="chord ${bar.function.endsWith('cadence') ? 'cadence' : ''}" data-bar="${i}"><div class="chord-top"><span class="number">${String(i + 1).padStart(2, '0')}</span><span class="roman">${bar.roman ?? ''}</span></div><strong>${bar.chord}</strong><small>${bar.function}</small><div class="tension-bar" title="Tension ${Math.round(bar.tension * 100)}% (target ${Math.round(bar.targetTension * 100)}%)"><div class="tension-fill" style="width:${Math.round(bar.tension * 100)}%"></div><div class="tension-target" style="left:${Math.round(bar.targetTension * 100)}%"></div></div></div>`
+      `<div class="chord ${bar.function.endsWith('cadence') || bar.function === 'modulation' ? 'cadence' : ''}" data-bar="${i}"><div class="chord-top"><span class="number">${String(i + 1).padStart(2, '0')}</span><span class="roman">${bar.roman ?? ''}</span></div><strong>${bar.chord}</strong><small>${bar.function}</small><div class="tension-bar" title="Tension ${Math.round(bar.tension * 100)}% (target ${Math.round(bar.targetTension * 100)}%)"><div class="tension-fill" style="width:${Math.round(bar.tension * 100)}%"></div><div class="tension-target" style="left:${Math.round(bar.targetTension * 100)}%"></div></div></div>`
     ).join('');
     this.setText('reason', `${GENRE_PROFILES[phrase.genre].label} idiom; ${ALGORITHM_LABELS[this.scoreValue.options.algorithm].toLowerCase()} proposes melodies, and the one closest to the emotion’s tension curve is kept.`);
   }
@@ -420,6 +475,7 @@ export class AudioBusComposer extends HTMLElement {
         <div class="field"><span class="field-label" id="parts-label">Ensemble</span><div class="parts" role="group" aria-labelledby="parts-label">${PARTS.map(p => `<label class="part"><input type="checkbox" data-part="${p}" checked>${titleCase(p)}</label>`).join('')}<label class="part" title="Send General MIDI Program Change messages for the genre’s instruments"><input type="checkbox" name="programs">Instrument changes</label></div></div>
         <div><div class="transport-buttons"><button class="primary" id="start">▶ Start composing</button><button id="finish" disabled>Finish phrase</button><button class="danger" id="stop" disabled>Stop</button></div><div class="applied-wrap"><div class="phrase-progress" aria-hidden="true"><div class="phrase-progress-fill" id="phrase-progress-fill"></div></div><p class="applied" id="applied" role="status">Ready. Start composing, then steer the next phrase.</p></div></div>
         <div class="output-row"><label class="field">Output<select name="output"><option value="internal">Browser audition</option><option value="silent">Events only</option><option value="request-midi">Connect MIDI output…</option></select></label><label class="field volume-field">Audition volume<input name="volume" type="range" min="0" max="1" step="0.01" value="0.35" aria-label="Audition volume"></label></div>
+        <div class="input-row"><label class="field">Follow MIDI input<select name="input"><option value="none">Off</option><option value="request-midi-in">Connect MIDI input…</option></select><span class="hint" id="input-label">Play along: the composer follows your key.</span></label><button id="capture" disabled title="Use the last notes you played as the theme">Use played theme</button></div>
       </section></div>
       <section class="score-section" aria-labelledby="score-title"><div class="score-header"><div><div class="eyebrow" id="section-label">Preview / Establish</div><h2 id="score-title">A phrase with somewhere to go.</h2></div><div class="score-meta" id="score-meta"></div></div><div class="roll-scroll" id="roll"></div><div class="chords" id="chords"></div><div class="legend">${(['melody', 'bass', 'harmony'] as const).map(p => `<span style="--swatch:${COLOURS[p]}">${titleCase(p)}</span>`).join('')}<span style="--swatch:#e8b780">Percussion on channel 10</span></div></section>
       <div class="lower"><section class="notes"><div class="eyebrow">Inside the decision</div><p class="reason" id="reason"></p></section><section class="exports"><div class="eyebrow">Keep the music</div><div class="buttons"><button id="midi">Export MIDI</button><button id="json">Save score</button><button id="recording">Save performance log</button></div><p class="hint">Score exports contain the displayed plan. The performance log records phrase snapshots and actual dispatches.</p></section></div>

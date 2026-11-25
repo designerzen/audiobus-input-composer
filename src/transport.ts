@@ -90,8 +90,8 @@ export class Transport {
     if (!this.running) return;
     validateEvents(events);
     if (fromBeat <= this.horizon || events.some(e => e.start < fromBeat - 1e-9 || e.start + e.duration > this.endBeat + MAX_OVERHANG)) throw new RangeError('Replacement must start after the dispatched horizon');
-    const kept = this.queue.slice(this.cursor).filter(item => (item.on ? item.beat : item.event.start) < fromBeat - 1e-9);
-    this.queue = this.sorted([...kept, ...this.schedule(events)]);
+    const kept = this.queue.slice(this.cursor).filter(item => item.event.start < fromBeat - 1e-9);
+    this.queue = this.sorted([...kept, ...this.schedule(events, fromBeat)]);
     this.cursor = 0;
   }
 
@@ -117,7 +117,7 @@ export class Transport {
         const item = this.queue[this.cursor++], e = item.event, address = addressOf(e), at = this.timeOf(item.beat, now);
         if (item.on) {
           // Stale attacks are skipped; they are never replayed as a catch-up burst.
-          if (e.start + e.duration <= beat) continue;
+          if (e.start + e.duration + (e.timing ?? 0) <= beat) continue;
           const prior = this.active.get(address);
           if (prior) {
             this.active.delete(address);
@@ -174,8 +174,13 @@ export class Transport {
     this.queue = this.sorted([...this.schedule(score.events), ...carried]);
     this.tempo = score.options.tempo; this.endBeat = score.length; this.cursor = 0;
   }
-  private schedule(events: readonly NoteEvent[]): Scheduled[] {
-    return events.flatMap(event => [{ beat: event.start, on: true, event }, { beat: event.start + event.duration, on: false, event }]);
+  /** Notes sound at their notated start plus the genre's timing push, never before floor. */
+  private schedule(events: readonly NoteEvent[], floor = 0): Scheduled[] {
+    return events.flatMap(event => {
+      const on = Math.max(floor, event.start + (event.timing ?? 0));
+      const off = Math.max(on + .005, event.start + event.duration + (event.timing ?? 0));
+      return [{ beat: on, on: true, event }, { beat: off, on: false, event }];
+    });
   }
   private sorted(queue: Scheduled[]): Scheduled[] {
     return queue.sort((a, b) => a.beat - b.beat || Number(a.on) - Number(b.on) || a.event.id.localeCompare(b.event.id));

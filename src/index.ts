@@ -7,6 +7,8 @@ export * from './genres.js';
 export * from './harmony.js';
 export * from './tension.js';
 export * from './composer.js';
+export * from './metrics.js';
+export * from './input.js';
 export * from './midi.js';
 export * from './transport.js';
 export * from './session.js';

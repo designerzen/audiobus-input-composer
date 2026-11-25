@@ -1,6 +1,6 @@
 {
   "name": "audiobus-input-composer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A theory-guided symbolic music composer and Plutchik web component for AudioBus",
   "type": "module",
   "main": "./src/index.ts",
@@ -35,7 +35,7 @@
     "build:lib": "tsc -p tsconfig.json",
     "build:site": "vite build && node scripts/site-assets.mjs",
     "build": "pnpm build:lib && pnpm build:site",
-    "check": "tsc -p tsconfig.json --noEmit",
+    "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.demo.json",
     "test": "pnpm build:lib && node --test tests/*.test.mjs",
     "test:browser": "playwright test",
     "preview": "vite preview --host 127.0.0.1",

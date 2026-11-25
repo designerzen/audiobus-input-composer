@@ -1,8 +1,9 @@
 import { ALGORITHMS, FAMILIES, GENRES, MODES, PARTS, type ComposerOptions, type EmotionFamily, type NoteEvent, type Phrase, type ResolvedMode, type Score } from './types.js';
-import { clamp, degreePitch, EMOTIONS, euclidean, mod, NOTE_NAMES, random, resolveMode, SCALES, transformMotif, voiceLead, type EmotionProfile, type GrooveStyle, type MotifTransform } from './theory.js';
+import { clamp, degreePitch, EMOTIONS, mod, NOTE_NAMES, random, resolveMode, SCALES, transformMotif, voiceLead, type EmotionProfile, type MotifTransform } from './theory.js';
 import { elaborate, material, type ElaborationOp, type Material } from './engines.js';
-import { GENRE_PROFILES, type DrumKit, type GenreProfile, type SectionRole } from './genres.js';
+import { GENRE_PROFILES, type GenreProfile, type SectionRole } from './genres.js';
 import { CLOSED_CADENCES, planHarmony, realiseChord, type ChordStep, type RealisedChord } from './harmony.js';
+import { addAccompaniment, addBassLine, addPercussion, byEnergy, compVoicing, fold, nearestWithPc, patternBass, patternComp, patternDrums, type Add, type Grid } from './parts.js';
 import { combineTension, harmonicTension, melodicTension, targetTension } from './tension.js';
 import { GENERATOR_VERSION } from './version.js';
 
@@ -22,23 +23,18 @@ export function normalizeOptions(input: Partial<ComposerOptions> = {}): Composer
   if (!Number.isInteger(o.root) || o.root < 0 || o.root > 11 || !Number.isInteger(o.bars) || o.bars < 8 || o.bars > 128 || o.bars % 8) throw new RangeError('Root must be 0–11 and bars a multiple of eight, 8–128');
   if (o.parts.some(p => !PARTS.includes(p)) || new Set(o.parts).size !== o.parts.length) throw new RangeError('Invalid or duplicate part');
   if (typeof o.programs !== 'boolean') throw new RangeError('programs must be true or false');
+  if (o.motif === undefined) delete o.motif;
+  else if (!Array.isArray(o.motif) || o.motif.length < 2 || o.motif.length > 8 || o.motif.some(d => !Number.isInteger(d) || d < 0 || d > 6)) throw new RangeError('motif must be 2–8 scale degrees, 0–6');
+  else o.motif = [...o.motif];
   return o;
 }
 
 export const pitchName = (pitch: number): string => `${NOTE_NAMES[mod(pitch, 12)]}${Math.floor(pitch / 12) - 1}`;
 
-type Add = (part: NoteEvent['part'], pitch: number, onset: number, duration: number, velocity: number, reason: string, degree?: number) => NoteEvent | undefined;
-
 const ROLES: readonly SectionRole[] = ['establish', 'develop', 'contrast', 'return'];
 const ELABORATIONS: Record<EmotionFamily, readonly [ElaborationOp, ElaborationOp]> = {
   joy: ['arpeggiate', 'passing'], trust: ['neighbour', 'passing'], fear: ['neighbour', 'anticipation'], surprise: ['anticipation', 'arpeggiate'],
   sadness: ['passing', 'neighbour'], disgust: ['neighbour', 'anticipation'], anger: ['anticipation', 'arpeggiate'], anticipation: ['anticipation', 'passing'],
-};
-const DRUM_WEIGHTS: Record<string, number> = { X: 1, x: .82, o: .62, g: .4, r: .75 };
-const DRUM_REASONS: Record<number, string> = {
-  36: 'Kick anchors the metrical hierarchy', 37: 'Rim click articulates the clave', 38: 'Snare backbeat contrast', 39: 'Clap marks the backbeat',
-  42: 'Closed hi-hat subdivision', 46: 'Open hi-hat lifts the off-beat', 49: 'Crash marks the section downbeat', 51: 'Ride cymbal carries the swing',
-  70: 'Shaker texture fills the grid',
 };
 
 function phraseArcVelocity(bar: number): number {
@@ -57,229 +53,6 @@ function snapToChord(pitch: number, pcs: ReadonlySet<number>, previous: number):
   return pitch;
 }
 
-function nearestWithPc(pc: number, reference: number, low: number, high: number): number {
-  let best = low + mod(pc - low, 12);
-  for (let p = best; p <= high; p += 12) if (Math.abs(p - reference) < Math.abs(best - reference)) best = p;
-  return best;
-}
-
-const fold = (pitch: number, low: number, high: number) => {
-  while (pitch > high) pitch -= 12;
-  while (pitch < low) pitch += 12;
-  return pitch;
-};
-
-/** Chord tone `interval` semitones above the chord root, in the bass register, falling back to `fallback`. */
-function bassTone(chord: RealisedChord, intervals: readonly number[], fallback: number): number {
-  const rootBass = chord.bass - mod(chord.bass - chord.rootPc, 12);
-  const found = intervals.find(i => chord.pcs.has(mod(chord.rootPc + i, 12)));
-  return rootBass + (found ?? fallback);
-}
-
-function addAccompaniment(add: Add, voicing: readonly number[], beat: number, cadence: boolean, energy: number, swing: number, groove: GrooveStyle): void {
-  const baseVel = .33 + energy * .16;
-  if (cadence || energy < .32) {
-    const dur = cadence ? 3.8 : 3.55;
-    for (const p of voicing) add('harmony', p, beat, dur, baseVel, cadence ? 'Resolved voice-led tonic harmony' : 'Sustained voice-led harmony');
-    return;
-  }
-  if (energy < .68) {
-    // Rhythmic two-pulse or gentle broken-chord accompaniment.
-    const split = groove === 'spark' || groove === 'propulsive' ? 1.5 + swing : 2;
-    for (const p of voicing) add('harmony', p, beat, split - .15, baseVel, 'Voice-led harmonic pulse');
-    for (const p of voicing) add('harmony', p, beat + split, 4 - split - .2, baseVel * .88, 'Answering harmonic comping');
-    return;
-  }
-  // High energy: animated arpeggiated / pulsing figuration without overlapping pitch addresses.
-  const order = groove === 'elegy' || groove === 'angular' ? [...voicing].reverse() : voicing;
-  for (let slot = 0; slot < 8; slot++) {
-    const pitch = order[slot % order.length];
-    const onset = beat + slot / 2 + (slot % 2 ? swing : 0);
-    const maxSlotDur = slot % 2 ? Math.max(.03, .48 - swing) : .44;
-    const vel = baseVel * (slot % 4 === 0 ? 1.05 : .82);
-    add('harmony', pitch, onset, Math.min(.42, maxSlotDur), vel, 'Energy-driven arpeggiated harmonic figuration');
-  }
-}
-
-function addBassLine(add: Add, chord: RealisedChord, next: RealisedChord, beat: number, bar: number, cadence: boolean, energy: number, swing: number, groove: GrooveStyle): void {
-  const bass = chord.bass;
-  const vel = .6 + energy * .2;
-  if (cadence) {
-    add('bass', bass, beat, 3.8, vel, 'Tonic arrival completes the phrase');
-    return;
-  }
-  if (energy <= .35) {
-    add('bass', bass, beat, 3.6, vel, 'Harmonic root anchors the bar');
-    return;
-  }
-  add('bass', bass, beat, 1.75, vel, 'Harmonic root anchors the bar');
-  const midPitch = groove === 'tense' || groove === 'driving' ? bass : bar % 2 === 0 ? bassTone(chord, [7, 6, 8], 7) : bass + 12;
-  const clampedMid = clamp(midPitch, 32, 56);
-  if (energy > .62) {
-    add('bass', clampedMid, beat + 2, 1.2, vel * .9, 'Fifth or octave supports harmonic rhythm');
-    // Approach note into the next bar's root for forward momentum.
-    const approach = next.bass > clampedMid ? next.bass - 1 : next.bass + 1;
-    const approachDur = Math.min(.42, Math.max(.03, .48 - swing));
-    add('bass', clamp(approach, 32, 56), beat + 3.5 + swing, approachDur, vel * .82, 'Chromatic leading-tone approach into next chord root');
-  } else {
-    add('bass', clampedMid, beat + 2, 1.65, vel * .9, 'Alternating fifth or octave supports harmonic rhythm');
-  }
-}
-
-function addPercussion(add: Add, beat: number, bar: number, cadence: boolean, energy: number, swing: number, groove: GrooveStyle): void {
-  if (energy < .18) return;
-  if (cadence) {
-    // Gentle cymbal/ride breath on cadential downbeat at higher energy; otherwise let cadence breathe.
-    if (energy > .55) add('percussion', 51, beat, .25, .42 + energy * .18, 'Cadential ride shimmer');
-    return;
-  }
-  // Phrase-start accent ride/bell.
-  if (bar === 0 && energy > .45) add('percussion', 51, beat, .2, .45 + energy * .2, 'Phrase-opening ride accent');
-
-  const kickHits = energy > .72 ? (groove === 'driving' || groove === 'propulsive' ? 4 : 3) : energy > .42 ? 2 : 1;
-  const kickPattern = euclidean(kickHits, 8, 0);
-  const snarePitch = groove === 'elegy' || groove === 'steady' ? 37 : 38;
-  for (let slot = 0; slot < 8; slot++) {
-    const onset = beat + slot / 2 + (slot % 2 ? swing : 0);
-    const maxDur = slot % 2 ? Math.max(.02, .48 - swing) : .44;
-    if (kickPattern[slot]) {
-      add('percussion', 36, onset, Math.min(.14, maxDur), (slot === 0 ? .62 : .48) + energy * .22, 'Euclidean kick anchors the metrical hierarchy');
-    }
-    if (slot === 4) {
-      add('percussion', snarePitch, onset, Math.min(.14, maxDur), .48 + energy * .22, 'Backbeat contrast');
-    } else if (bar === 3 && slot === 7 && energy > .42) {
-      // Half-cadence turnaround pickup.
-      add('percussion', 38, onset, Math.min(.12, maxDur), .38 + energy * .18, 'Half-cadence turnaround fill');
-    }
-    if (energy > .48 && (slot % 2 === 1 || energy > .78)) {
-      const openHat = slot === 7 && energy > .68 && bar % 2 === 1;
-      const hatDur = Math.min(openHat ? .22 : .08, maxDur);
-      add('percussion', openHat ? 46 : 42, onset, hatDur, (slot % 2 === 0 ? .22 : .3) + energy * .18, openHat ? 'Open hi-hat phrase lift' : 'Hi-hat subdivision within energy budget');
-    }
-  }
-}
-
-/** Genre patterns come in low, mid and high energy versions. */
-const byEnergy = <T>(levels: { low: T; mid: T; high: T }, energy: number): T => energy < .34 ? levels.low : energy < .67 ? levels.mid : levels.high;
-
-interface Grid { slots: number; swing16: number }
-const slotOnset = (slot: number, grid: Grid) => slot * 4 / grid.slots + (grid.slots === 16 && slot % 2 ? grid.swing16 : 0);
-
-/** Attack segments of a one-bar pattern: each runs until the next attack or the end of the bar. */
-function segments(pattern: string, grid: Grid): { slot: number; symbol: string; onset: number; length: number }[] {
-  const out = [];
-  for (let slot = 0; slot < pattern.length; slot++) {
-    const symbol = pattern[slot];
-    if (symbol === '.' || symbol === '-') continue;
-    let end = slot + 1;
-    while (end < pattern.length && pattern[end] === '-') end++;
-    const onset = slotOnset(slot, grid);
-    let until = end >= pattern.length ? 4 : slotOnset(end, grid);
-    // A rest after a sustained run ends the note there.
-    if (end < pattern.length && pattern[end] === '.') until = slotOnset(end, grid);
-    out.push({ slot, symbol, onset, length: until - onset });
-  }
-  return out;
-}
-
-function patternBass(add: Add, pattern: string, chord: RealisedChord, next: RealisedChord, beat: number, grid: Grid, energy: number, cadence: boolean): void {
-  const vel = .58 + energy * .22;
-  if (cadence) { add('bass', fold(chord.bass, 28, 55), beat, 3.8, vel, 'Bass arrives with the cadence'); return; }
-  const segs = segments(pattern, grid);
-  const walkers = segs.filter(s => s.symbol === 'W').length;
-  let walk = 0, previous = chord.bass;
-  for (const s of segs) {
-    let pitch = chord.bass, reason = 'Bass states the harmony on the genre pattern';
-    switch (s.symbol) {
-      case '5': pitch = bassTone(chord, [7, 6, 8], 7); reason = 'Fifth answers the root'; break;
-      case '8': pitch = chord.bass + 12; reason = 'Octave leap animates the bass'; break;
-      case '3': pitch = bassTone(chord, [4, 3], 4); reason = 'Chord third colours the bass line'; break;
-      case 'A': pitch = previous < next.bass ? next.bass - 1 : next.bass + 1; reason = 'Chromatic approach into the next root'; break;
-      case 'W': {
-        const k = walk++;
-        if (k === 0) { pitch = chord.bass; reason = 'Walking bass: root on the downbeat'; }
-        else if (k === walkers - 1) { pitch = previous < next.bass ? next.bass - 1 : next.bass + 1; reason = 'Walking bass: chromatic approach'; }
-        else { pitch = bassTone(chord, k === 1 ? [4, 3] : [7, 6, 8], k === 1 ? 4 : 7); reason = 'Walking bass: chord tone'; }
-        while (pitch - previous > 7) pitch -= 12;
-        while (previous - pitch > 7) pitch += 12;
-        break;
-      }
-    }
-    pitch = fold(pitch, 28, 55);
-    add('bass', pitch, beat + s.onset, Math.max(.03, s.length * .9 - .02), vel * (s.slot === 0 ? 1.05 : .9), reason);
-    previous = pitch;
-  }
-}
-
-function compVoicing(style: GenreProfile['voicing'], voicing: readonly number[], chord: RealisedChord): number[] {
-  if (style === 'power') { const low = 40 + mod(chord.rootPc - 40, 12); return [low, low + 7, low + 12]; }
-  if (style === 'shell') {
-    const third = [4, 3].find(i => chord.pcs.has(mod(chord.rootPc + i, 12))) ?? 4;
-    const top = [10, 11, 9, 7].find(i => chord.pcs.has(mod(chord.rootPc + i, 12))) ?? 7;
-    const a = nearestWithPc(mod(chord.rootPc + third, 12), 60, 52, 70);
-    const b = nearestWithPc(mod(chord.rootPc + top, 12), a + 5, a + 1, a + 12);
-    return [a, b];
-  }
-  return [...voicing];
-}
-
-function patternComp(add: Add, pattern: string, notes: readonly number[], beat: number, grid: Grid, energy: number, cadence: boolean, overhang: number): NoteEvent[] {
-  const vel = .33 + energy * .16, sustained: NoteEvent[] = [];
-  if (cadence) {
-    for (const p of notes) { const e = add('harmony', p, beat, 3.8 + overhang, vel, 'Cadential chord rings out'); if (e) sustained.push(e); }
-    return sustained;
-  }
-  const arpeggio = [...notes, ...notes.map(p => p + 12)];
-  const alberti = [notes[0], notes[notes.length - 1], notes[1] ?? notes[0], notes[notes.length - 1]];
-  let step = 0;
-  for (const s of segments(pattern, grid)) {
-    const accent = s.slot === 0 ? 1 : .9, toBarEnd = s.onset + s.length >= 4 - 1e-9;
-    switch (s.symbol) {
-      case 'C': case 'P':
-        for (const p of notes) {
-          const e = add('harmony', p, beat + s.onset, s.length * .95 - .01 + (toBarEnd ? overhang : 0), vel * accent, s.symbol === 'P' ? 'Power chord drives the rhythm' : 'Sustained chord colour');
-          // Only chords that reach the bar line can be held into the next bar.
-          if (e && toBarEnd) sustained.push(e);
-        }
-        break;
-      case 'S':
-        for (const p of notes) add('harmony', p, beat + s.onset, Math.min(s.length * .6, .35), vel * accent * 1.1, 'Short chord stab on the groove');
-        break;
-      case 'A':
-        add('harmony', arpeggio[step++ % arpeggio.length], beat + s.onset, s.length * .9, vel * accent, 'Arpeggio unfolds the chord in time');
-        break;
-      case 'L':
-        add('harmony', alberti[step++ % alberti.length], beat + s.onset, s.length * .9, vel * accent * .9, 'Alberti figure animates the harmony');
-        break;
-    }
-  }
-  return sustained;
-}
-
-function patternDrums(add: Add, kit: DrumKit, beat: number, grid: Grid, energy: number, feel: Readonly<Record<number, number>>, fill: boolean, crash: boolean): void {
-  const base = .32 + energy * .35, slot = 4 / grid.slots;
-  for (const [key, pattern] of Object.entries(kit)) {
-    const note = Number(key), push = feel[note] ?? 0;
-    for (let i = 0; i < pattern.length; i++) {
-      const weight = DRUM_WEIGHTS[pattern[i]];
-      if (!weight) continue;
-      const onset = beat + slotOnset(i, grid) + push;
-      if (pattern[i] === 'r') {
-        for (let hit = 0; hit < 3; hit++) add('percussion', note, onset + hit * slot / 3, slot / 3 * .7, base * weight * (.8 + hit * .1), 'Hi-hat roll subdivides the pulse');
-      } else {
-        add('percussion', note, onset, Math.min(.12, slot * .7), clamp(base * weight + (i === 0 ? .05 : 0), .05, 1), DRUM_REASONS[note] ?? 'Percussion from the genre template');
-      }
-    }
-  }
-  if (fill) {
-    const snare = kit[38] ?? '', from = grid.slots - grid.slots / 4;
-    for (let i = from; i < grid.slots; i++) {
-      if (snare[i] && snare[i] !== '.') continue;
-      add('percussion', 38, beat + slotOnset(i, grid), Math.min(.1, slot * .7), base * (.5 + .5 * (i - from) / (grid.slots / 4)), 'Turnaround fill signals the phrase boundary');
-    }
-  }
-  if (crash) add('percussion', 49, beat, .3, base, DRUM_REASONS[49]);
-}
 
 interface MelodyNote { pitch: number; offset: number; duration: number; velocity: number; degree: number; reason: string }
 interface MelodyContext {
@@ -307,6 +80,9 @@ function realiseMelody(m: Material, c: MelodyContext): { notes: MelodyNote[]; la
     if (chordal) pitch = fold(snapToChord(pitch, c.chord.pcs, previous), 58, 90);
     // Cadential arrival lands on the planned skeleton degree, nearest the previous note.
     if (c.cadential) pitch = fold(snapToChord(nearestWithPc(mod(degreePitch(c.step.melody ?? 0, c.root, c.mode), 12), previous, 58, 90), c.chord.pcs, previous), 58, 90);
+    // Keep the line singable: folding into range must not leave a leap wider than an octave.
+    while (pitch - previous > 12 && pitch - 12 >= 58) pitch -= 12;
+    while (previous - pitch > 12 && pitch + 12 <= 90) pitch += 12;
     previous = pitch;
     const offset = slot / 2 + (slot % 2 ? c.swing : 0);
     const nextSlot = m.gates.findIndex((g, i) => i > slot && g > 0);
@@ -337,6 +113,37 @@ function extensionFor(genre: GenreProfile, intensity: number, step: ChordStep, b
 export interface PhraseContext {
   /** Last phrase of a piece: its cadence must close and nothing rings past its end. */
   final?: boolean;
+  /** Key of the phrase that follows. When it differs, the last bar turns to its dominant. */
+  next?: PhraseKey;
+}
+export interface PhraseKey { root: number; mode: ResolvedMode }
+
+/** Tonic and mode of a phrase, including its section's key lift. */
+export function phraseKey(input: Partial<ComposerOptions>, index: number): PhraseKey {
+  const options = normalizeOptions(input), genre = GENRE_PROFILES[options.genre];
+  const section = genre.form[index % genre.form.length];
+  const mode = options.mode === 'auto' ? resolveMode(EMOTIONS[options.emotion].mode, options.intensity, genre.modes) : options.mode;
+  return { root: mod(options.root + (section.lift ?? 0), 12), mode };
+}
+
+/** The dominant seventh of the next key, spelled as a step of the current key. */
+function pivotDominant(next: PhraseKey, root: number, mode: ResolvedMode): ChordStep {
+  const target = mod(next.root + 7 - root, 12), scale = SCALES[mode];
+  let degree = 0;
+  for (let d = 1; d < 7; d++) if (Math.abs(signedPc(target - scale[d])) < Math.abs(signedPc(target - scale[degree]))) degree = d;
+  return { degree, shift: signedPc(target - scale[degree]) || undefined, quality: 'dom7', tag: `V7→${NOTE_NAMES[next.root]}` };
+}
+const signedPc = (n: number) => mod(n + 6, 12) - 6;
+
+/** Metrical level of an onset within the bar: 0 downbeat, 1 half bar, 2 beat, 3 eighth, 4 finer. */
+function metricLevel(position: number): number {
+  const p = mod(position, 4);
+  const near = (x: number) => Math.abs(p - x) < .02;
+  if (near(0) || near(4)) return 0;
+  if (near(2)) return 1;
+  if (near(1) || near(3)) return 2;
+  if ([.5, 1.5, 2.5, 3.5].some(near)) return 3;
+  return 4;
 }
 
 export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, start = index * 32, context: PhraseContext = {}): Phrase {
@@ -347,8 +154,7 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
   const section = genre.form[index % genre.form.length];
   const cycleStart = index - (index % genre.form.length);
   const final = !!context.final;
-  const root = mod(options.root + (section.lift ?? 0), 12);
-  const mode = options.mode === 'auto' ? resolveMode(profile.mode, options.intensity, genre.modes) : options.mode;
+  const { root, mode } = phraseKey(options, index);
   const energy = clamp(options.energy + (section.energy ?? 0), 0, 1);
   const sectionParts = section.parts ? options.parts.filter(p => section.parts!.includes(p)) : options.parts;
   const parts = sectionParts.length ? sectionParts : options.parts;
@@ -358,10 +164,17 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
   const roleIndex = ROLES.indexOf(section.role);
 
   const themeRng = random(`${options.seed}:theme`);
-  const baseMotif = [0, 2 + Math.floor(themeRng() * 2), 1 + Math.floor(themeRng() * 2), 4];
+  const seeded = [0, 2 + Math.floor(themeRng() * 2), 1 + Math.floor(themeRng() * 2), 4];
+  const baseMotif = options.motif ?? seeded;
   const transforms: Record<SectionRole, MotifTransform> = { establish: 'identity', develop: 'sequence-up', contrast: profile.contour < 0 ? 'retrograde' : 'invert', return: 'identity' };
   const motif = transformMotif(baseMotif, transforms[section.role]);
-  const { steps, cadence } = planHarmony({ genre, emotion: options.emotion, mode, intensity: options.intensity, seed: options.seed, index, cycleStart, role: section.role, final, contour: profile.contour });
+  const plan = planHarmony({ genre, emotion: options.emotion, mode, intensity: options.intensity, seed: options.seed, index, cycleStart, role: section.role, final, contour: profile.contour });
+  const { steps } = plan;
+  let { cadence } = plan;
+  const next = context.next;
+  const modulating = !final && !!next && (next.root !== root || next.mode !== mode);
+  // A key or mode change is prepared by the new key's dominant instead of arriving unannounced.
+  if (modulating) { steps[7] = pivotDominant(next, root, mode); cadence = 'modulating'; }
 
   const phrase: Phrase = {
     index, start, length: 32, section: section.name, genre: options.genre, root, options, mode,
@@ -373,16 +186,24 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
   const center = clamp(72 + profile.registerOffset + genre.melody.register + (roleIndex === 2 ? 3 : 0), 62, 82);
   let previousPitch = clamp(degreePitch(0, root, mode) + profile.registerOffset + genre.melody.register, 58, 84);
   let serial = 0;
+  const feel = genre.feel, feelRng = random(`${options.seed}:feel:${index}`);
   let held: NoteEvent[] = [], heldKey = '';
 
   const add: Add = (part, pitch, onset, duration, velocity, reason, degree) => {
     if (!parts.includes(part)) return undefined;
+    // Pitched parts lean on strong beats; drums carry their own accents in the pattern.
+    const accent = part === 'percussion' ? 1 : 1 - feel.accent * .035 * metricLevel(onset - start);
+    // Triangular spread, so most notes stay close to the part's push.
+    const spread = (feelRng() + feelRng() - 1) * feel.jitter;
+    const push = (feel.parts?.[part] ?? 0) + (part === 'percussion' ? feel.drums?.[pitch] ?? 0 : 0);
     const event: NoteEvent = {
       id: `p${index}:${part}:${serial++}`, part, pitch: Math.round(clamp(pitch, 0, 127)),
       channel: { melody: 1, bass: 2, harmony: 3, percussion: 10 }[part], start: onset,
-      duration: Math.max(.01, Math.min(duration, start + 32 + overhang - onset)), velocity: clamp(velocity, .05, 1),
+      duration: Math.max(.01, Math.min(duration, start + 32 + overhang - onset)), velocity: clamp(velocity * accent, .05, 1),
       reason, degree, motifId: `${options.seed}:theme`,
     };
+    const timing = Math.round(clamp(push + spread, -.05, .08) * 1e4) / 1e4;
+    if (timing) event.timing = timing;
     phrase.events.push(event);
     return event;
   };
@@ -419,7 +240,8 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
       for (let k = 0; k < (cadential ? 1 : 4); k++) {
         const proposalEnergy = clamp(energy * genre.melody.density + (k === 1 ? .2 : k === 2 ? -.2 : 0), 0, 1);
         let proposal = material({ ...options, energy: proposalEnergy }, materialIndex, bar, motif, { chordDegree: step.degree, sectionIndex: roleIndex, mode, variant: k === 3 ? 1 : 0 });
-        if (section.role === 'return' && index !== cycleStart) {
+        // A return restates the opening bars of each half literally, so the theme is recognised, and varies the rest.
+        if (section.role === 'return' && index !== cycleStart && bar % 4 >= 2) {
           const rng = random(`${options.seed}:elaborate:${index}:${bar}`);
           proposal = elaborate(proposal, ELABORATIONS[options.emotion][rng() < .65 ? 0 : 1], step.degree, rng);
         }
@@ -439,13 +261,13 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
     if (genre.drums === 'pop') addPercussion(add, beat, bar, cadential, energy, swing, profile.groove);
     else if (genre.drums && energy >= .12) {
       const kit = byEnergy(genre.drums, energy);
-      const fill = energy > .45 && (bar === 7 || (bar === 3 && energy > .7));
-      patternDrums(add, kit, beat, grid, energy, genre.feel ?? {}, fill, bar === 0 && energy > .6 && section.role !== 'contrast');
+      const fill = (energy > .45 || modulating) && (bar === 7 || (bar === 3 && energy > .7));
+      patternDrums(add, kit, beat, grid, energy, fill, bar === 0 && energy > .6 && section.role !== 'contrast');
     }
 
     phrase.bars.push({
       index: index * 8 + bar, start: beat, chord: chord.symbol, roman: chord.roman, degree: step.degree, pitches: voicing,
-      function: bar === 7 ? (cadence === 'half' ? 'half cadence' : cadence === 'deceptive' ? 'deceptive cadence' : cadence === 'open' ? 'continuation' : 'cadence')
+      function: bar === 7 ? (cadence === 'modulating' ? 'modulation' : cadence === 'half' ? 'half cadence' : cadence === 'deceptive' ? 'deceptive cadence' : cadence === 'open' ? 'continuation' : 'cadence')
         : bar === 3 && mod(step.degree, 7) === 4 && !step.shift ? 'half cadence' : bar < 4 ? 'presentation' : 'continuation',
       tension: combineTension(harmonic, melodyTension, hasMelody), targetTension: target,
     });
@@ -459,7 +281,7 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
 export function compose(input: Partial<ComposerOptions> = {}): Score {
   const options = normalizeOptions(input);
   const count = options.bars / 8;
-  const phrases = Array.from({ length: count }, (_, i) => composePhrase(options, i, i * 32, { final: i === count - 1 }));
+  const phrases = Array.from({ length: count }, (_, i) => composePhrase(options, i, i * 32, i === count - 1 ? { final: true } : { next: phraseKey(options, i + 1) }));
   return { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, options, length: options.bars * 4, phrases, events: phrases.flatMap(p => p.events) };
 }
 

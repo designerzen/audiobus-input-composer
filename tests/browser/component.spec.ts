@@ -134,3 +134,36 @@ test('energy changes while playing enter at the next bar, not the next phrase', 
   await expect(composer.locator('#applied')).toContainText('enter at the next bar');
   await composer.getByRole('button', { name: 'Stop', exact: true }).click();
 });
+
+test('the page link holds the settings, so a shared link reproduces them', async ({ page }) => {
+  await page.goto('/#genre=jazz&energy=0.8&seed=shared');
+  const composer = page.locator('audiobus-composer');
+  await expect(composer.getByLabel('Genre')).toHaveValue('jazz');
+  await expect(composer.locator('[name="seed"]')).toHaveValue('shared');
+  await composer.getByLabel('Emotion family').selectOption('trust');
+  await expect(page).toHaveURL(/emotion=trust/);
+  await expect(page).toHaveURL(/genre=jazz/);
+  await page.goto('/#genre=nonsense'); await page.reload();
+  await expect(composer.getByLabel('Genre')).toHaveValue('pop');
+});
+
+test('MIDI input following is offered, and the played theme waits for an input', async ({ page }) => {
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  await expect(composer.getByLabel('Follow MIDI input')).toHaveValue('none');
+  await expect(composer.getByRole('button', { name: 'Use played theme' })).toBeDisabled();
+});
+
+test('the gallery shows every emotion for a genre and a summary of all genres', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/gallery.html');
+  await expect(page.locator('.card')).toHaveCount(8);
+  await expect(page.locator('#summary tbody tr')).toHaveCount(13);
+  await page.getByLabel('Genre').selectOption('reggae');
+  await expect(page.locator('.card').first()).toContainText('Repeated bars');
+  await page.locator('button[data-play]').first().click();
+  await expect(page.locator('button[data-play]').first()).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('button[data-play]').first().click();
+  await expect(page.locator('button[data-play]').first()).toHaveAttribute('aria-pressed', 'false');
+  expect(errors).toEqual([]);
+});

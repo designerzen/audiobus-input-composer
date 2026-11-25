@@ -1,4 +1,4 @@
-import { composePhrase, normalizeOptions } from './composer.js';
+import { composePhrase, normalizeOptions, phraseKey, type PhraseKey } from './composer.js';
 import { Transport, type TransportOptions } from './transport.js';
 import type { ComposerOptions, DispatchRecord, MidiOutputAdapter, Phrase } from './types.js';
 import { GENERATOR_VERSION } from './version.js';
@@ -26,7 +26,8 @@ const samePhraseLevel = (a: ComposerOptions, b: ComposerOptions) => JSON.stringi
 
 /**
  * Continuous phrase generation. Energy, swing and ensemble apply at the next bar; everything else
- * applies atomically at the next eight-bar boundary.
+ * applies atomically at the next eight-bar boundary. A pending change of key or mode recomposes the
+ * last bar as the new key's dominant, so the change is prepared rather than abrupt.
  */
 export class ComposerSession {
   private target: ComposerOptions;
@@ -35,6 +36,7 @@ export class ComposerSession {
   private index = 0;
   private phrase?: Phrase;
   private phraseFinal = false;
+  private phraseNext?: PhraseKey;
   private revision = 0;
   private programKey = '';
   private readonly clock: () => number;
@@ -88,7 +90,8 @@ export class ComposerSession {
   private begin(chain: boolean): void {
     this.appliedValue = normalizeOptions(this.target);
     this.phraseFinal = this.finishing;
-    const phrase = composePhrase(this.appliedValue, this.index, 0, { final: this.phraseFinal });
+    this.phraseNext = this.nextKey();
+    const phrase = composePhrase(this.appliedValue, this.index, 0, { final: this.phraseFinal, next: this.phraseNext });
     this.phrase = phrase;
     if (this.record.phrases.length < 1024) this.record.phrases.push({ phrase, time: this.clock() }); else this.record.truncated = true;
     const score = { events: phrase.events, length: phrase.length, options: this.appliedValue, setup: this.setupFor(phrase) };
@@ -103,16 +106,27 @@ export class ComposerSession {
     this.programKey = key;
     return phrase.setup;
   }
-  /** Recompose the rest of the phrase from the next bar line when only bar-level controls changed. */
+  /** Key of the phrase after this one, as the selected options would make it. */
+  private nextKey(): PhraseKey | undefined {
+    return this.finishing ? undefined : phraseKey(this.target, this.index + 1);
+  }
+  /**
+   * Recompose the rest of the phrase from the next bar line when bar-level controls changed, or from
+   * the last bar when the next phrase's key no longer matches the one this phrase leads into.
+   */
   private reviseBar(beat: number): void {
     const phrase = this.phrase;
-    if (!phrase || sameBarLevel(this.target, this.appliedValue)) return;
+    if (!phrase) return;
     const from = (Math.floor(beat / 4 + 1e-9) + 1) * 4;
+    const next = this.nextKey();
+    const rekey = from === phrase.length - 4 && JSON.stringify(next) !== JSON.stringify(this.phraseNext);
+    if (sameBarLevel(this.target, this.appliedValue) && !rekey) return;
     // Wait until the half beat before the bar line, so a dragged slider recomposes once per bar.
     if (from >= phrase.length || from - beat > .5 || from <= this.transport.horizon) return;
     const options = normalizeOptions({ ...this.appliedValue, ...Object.fromEntries(BAR_LEVEL.map(key => [key, this.target[key]])) });
     const tag = ++this.revision;
-    const revised = composePhrase(options, this.index, 0, { final: this.phraseFinal });
+    if (from === phrase.length - 4) this.phraseNext = next;
+    const revised = composePhrase(options, this.index, 0, { final: this.phraseFinal, next: this.phraseNext });
     const events = revised.events.filter(e => e.start >= from - 1e-9).map(e => ({ ...e, id: `${e.id}~r${tag}` }));
     this.transport.replaceFrom(from, events);
     this.appliedValue = options;
