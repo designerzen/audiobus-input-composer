@@ -167,3 +167,18 @@ test('the gallery shows every emotion for a genre and a summary of all genres', 
   await expect(page.locator('button[data-play]').first()).toHaveAttribute('aria-pressed', 'false');
   expect(errors).toEqual([]);
 });
+
+test('tempo is set with a slider or by tapping the beat', async ({ page }) => {
+  await page.clock.install();
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  await composer.getByLabel('Tempo / BPM').fill('140');
+  await expect(composer.locator('#tempo-value')).toHaveText('140 BPM');
+  await expect(composer.locator('#score-meta')).toContainText('140 BPM');
+  const tap = composer.getByRole('button', { name: 'Tap' });
+  // Freeze time so only the simulated 500 ms between taps counts.
+  await page.clock.pauseAt(Date.now() + 60_000);
+  for (let i = 0; i < 4; i++) { await tap.click(); await page.clock.runFor(500); }
+  await expect(composer.getByLabel('Tempo / BPM')).toHaveValue('120');
+  await expect(composer.locator('#tempo-value')).toHaveText('120 BPM');
+});

@@ -48,6 +48,7 @@ export class AudioBusComposer extends HTMLElement {
   private peerValue?: MidiSink;
   private ready = false;
   private lastBarDrawn = -1;
+  private taps: number[] = [];
 
   get options(): ComposerOptions { return normalizeOptions(this.state); }
   set options(value: Partial<ComposerOptions>) { this.configure(value); }
@@ -279,6 +280,9 @@ export class AudioBusComposer extends HTMLElement {
     if (!this.ready) return;
     const tempo = this.view.querySelector<HTMLInputElement>('[name="tempo"]');
     if (tempo) { tempo.disabled = this.hosted; tempo.title = this.hosted ? 'Tempo follows the host transport' : ''; }
+    const tap = this.view.getElementById('tap') as HTMLButtonElement | null;
+    if (tap) tap.disabled = this.hosted;
+    this.setText('tempo-value', `${this.state.tempo} BPM`);
     for (const key of ['emotion', 'intensity', 'energy', 'tempo', 'root', 'mode', 'algorithm', 'genre', 'seed', 'swing'] as const) {
       const el = this.view.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${key}"]`);
       if (el) el.value = String(this.state[key]);
@@ -316,6 +320,8 @@ export class AudioBusComposer extends HTMLElement {
     const input = event.target as HTMLInputElement;
     if (['energy', 'intensity', 'swing'].includes(input.name)) this.configure({ [input.name]: Number(input.value) });
     if (input.name === 'volume') { this.synth.volume = Number(input.value); return; }
+    // The slider applies on release; show the value while dragging.
+    if (input.name === 'tempo') this.setText('tempo-value', `${input.value} BPM`);
   }
   private async onChange(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement | HTMLSelectElement;
@@ -366,11 +372,23 @@ export class AudioBusComposer extends HTMLElement {
       case 'stop': this.stop(); break;
       case 'finish': this.finish(); break;
       case 'reroll': this.configure({ seed: `theme-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`, motif: undefined }); break;
+      case 'tap': this.tapTempo(); break;
       case 'capture': try { this.usePlayedTheme(); } catch (e) { this.reportError(e); } break;
       case 'midi': this.download(scoreToMidi(this.scoreValue), 'composition.mid', 'audio/midi'); break;
       case 'json': this.download(JSON.stringify(this.scoreValue, null, 2), 'composition.json', 'application/json'); break;
       case 'recording': this.download(JSON.stringify(this.recording, null, 2), 'performance.json', 'application/json'); break;
     }
+  }
+  /** Tap tempo: the mean of the last few intervals, restarting after a two-second pause. */
+  private tapTempo(): void {
+    if (this.hosted) return;
+    const now = performance.now();
+    if (this.taps.length && now - this.taps[this.taps.length - 1] > 2000) this.taps = [];
+    this.taps.push(now);
+    if (this.taps.length > 5) this.taps.shift();
+    if (this.taps.length < 2) { this.setText('tempo-value', 'Tap again…'); return; }
+    const interval = (this.taps[this.taps.length - 1] - this.taps[0]) / (this.taps.length - 1);
+    this.configure({ tempo: clamp(Math.round(60000 / interval), 30, 240) });
   }
   private selectPath(path: SVGPathElement): void {
     this.configure({ emotion: path.dataset.family as EmotionFamily, intensity: Number(path.dataset.strength) });
@@ -387,6 +405,9 @@ export class AudioBusComposer extends HTMLElement {
       this.configure({ emotion: family, intensity: level / 3 });
       this.view.querySelector<SVGPathElement>('path[tabindex="0"]')?.focus();
       return;
+    }
+    if (!this.hosted && (event.key === 't' || event.key === 'T') && !event.ctrlKey && !event.metaKey && !event.altKey && !target.closest('input[type=text], input[type=number], select, textarea')) {
+      this.tapTempo(); return;
     }
     if (!this.hosted && event.key === ' ' && !target.closest('input, select, button, textarea')) {
       event.preventDefault();
@@ -470,7 +491,7 @@ export class AudioBusComposer extends HTMLElement {
       </section><section class="controls" aria-labelledby="direction-title">
         <div><div class="eyebrow">02 / Direction</div><h2 id="direction-title">Let a theme find its way.</h2><div class="hint">Rules shape the phrase. You shape its character.</div></div>
         <label class="field"><span class="range-label"><span>Energy</span><output class="energy-value" id="energy-value">50</output></span><input name="energy" aria-label="Energy" type="range" min="0" max="1" step="0.01"><span class="range-ends"><span>Spacious</span><span>Active</span></span></label>
-        <div class="control-grid"><label class="field">Genre<select name="genre">${GENRES.map(g => `<option value="${g}">${GENRE_PROFILES[g].label}</option>`).join('')}</select></label><label class="field">Generator<select name="algorithm">${ALGORITHMS.map(a => `<option value="${a}">${ALGORITHM_LABELS[a]}</option>`).join('')}</select></label><label class="field">Tempo / BPM<input name="tempo" type="number" min="30" max="240" step="1"></label><label class="field">Tonic<select name="root">${Array.from({ length: 12 }, (_, i) => `<option value="${i}">${pitchName(i + 60).slice(0, -1)}</option>`).join('')}</select></label><label class="field">Harmonic colour<select name="mode">${(Object.keys(MODE_LABELS) as Mode[]).map(m => `<option value="${m}">${MODE_LABELS[m]}</option>`).join('')}</select></label></div>
+        <div class="control-grid"><label class="field">Genre<select name="genre">${GENRES.map(g => `<option value="${g}">${GENRE_PROFILES[g].label}</option>`).join('')}</select></label><label class="field">Generator<select name="algorithm">${ALGORITHMS.map(a => `<option value="${a}">${ALGORITHM_LABELS[a]}</option>`).join('')}</select></label><label class="field"><span class="range-label"><span>Tempo</span><output id="tempo-value">104 BPM</output></span><div class="seed-row tempo-row"><input name="tempo" type="range" min="30" max="240" step="1" aria-label="Tempo / BPM"><button id="tap" title="Tap the beat to set the tempo (or press T)">Tap</button></div></label><label class="field">Tonic<select name="root">${Array.from({ length: 12 }, (_, i) => `<option value="${i}">${pitchName(i + 60).slice(0, -1)}</option>`).join('')}</select></label><label class="field">Harmonic colour<select name="mode">${(Object.keys(MODE_LABELS) as Mode[]).map(m => `<option value="${m}">${MODE_LABELS[m]}</option>`).join('')}</select></label></div>
         <div class="control-grid"><label class="field">Theme seed<div class="seed-row"><input name="seed" type="text" maxlength="128" spellcheck="false"><button id="reroll" aria-label="Create a new theme" title="Create a new theme">↻</button></div></label><label class="field"><span class="range-label">Swing <output id="swing-value">0%</output></span><input name="swing" type="range" min="0" max="0.45" step="0.01" aria-label="Swing"></label></div>
         <div class="field"><span class="field-label" id="parts-label">Ensemble</span><div class="parts" role="group" aria-labelledby="parts-label">${PARTS.map(p => `<label class="part"><input type="checkbox" data-part="${p}" checked>${titleCase(p)}</label>`).join('')}<label class="part" title="Send General MIDI Program Change messages for the genre’s instruments"><input type="checkbox" name="programs">Instrument changes</label></div></div>
         <div><div class="transport-buttons"><button class="primary" id="start">▶ Start composing</button><button id="finish" disabled>Finish phrase</button><button class="danger" id="stop" disabled>Stop</button></div><div class="applied-wrap"><div class="phrase-progress" aria-hidden="true"><div class="phrase-progress-fill" id="phrase-progress-fill"></div></div><p class="applied" id="applied" role="status">Ready. Start composing, then steer the next phrase.</p></div></div>
