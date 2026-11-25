@@ -11,7 +11,10 @@ test('composition is reproducible, query-independent and develops a persistent t
   assert.equal(new Set(score.events.map(e => e.motifId)).size, 1);
   assert.deepEqual(score.phrases.map(p => p.section), ['Establish', 'Develop']);
   assert.equal(score.phrases[0].bars[3].function, 'half cadence');
-  assert.equal(score.phrases[0].bars[7].function, 'cadence');
+  // Antecedent–consequent: the first phrase may stay open, the second always closes on the tonic.
+  assert(['cadence', 'half cadence', 'deceptive cadence'].includes(score.phrases[0].bars[7].function));
+  assert.equal(score.phrases[1].bars[7].function, 'cadence');
+  assert(score.phrases[1].closed);
 });
 
 test('every engine and emotion respects score bounds, cadence, channels and address lifetimes', () => {

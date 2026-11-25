@@ -3,7 +3,13 @@ import { validateEvents } from './composer.js';
 
 /** No clock extension is assumed: call only when the local scheduler says a message is due. */
 export const audioBusOutput = (peer: MidiSink): MidiOutputAdapter => ({ label: 'AudioBus', send: bytes => peer.sendMidi(bytes) });
-export const webMidiOutput = (output: { send(data: number[]): void; name?: string | null }): MidiOutputAdapter => ({ label: output.name ?? 'MIDI output', send: bytes => output.send([...bytes]) });
+/** Web MIDI schedules timestamped messages itself, so the transport can send them ahead of time. */
+export const webMidiOutput = (output: { send(data: number[], timestamp?: number): void; clear?(): void; name?: string | null }): MidiOutputAdapter => ({
+  label: output.name ?? 'MIDI output',
+  timestamps: true,
+  send: (bytes, timestamp) => timestamp === undefined ? output.send([...bytes]) : output.send([...bytes], timestamp),
+  clear: () => output.clear?.(),
+});
 
 function variableLength(value: number): number[] {
   const result = [value & 127];
@@ -16,21 +22,25 @@ const metaText = (type: number, text: string): number[] => {
   return [255, type, ...variableLength(bytes.length), ...bytes];
 };
 
-/** Format-0 Standard MIDI File, 480 PPQ, explicit note-offs, section/chord markers and a fixed export tempo. */
+/**
+ * Format-0 Standard MIDI File, 480 PPQ, explicit note-offs, section/chord markers, program changes and a
+ * fixed export tempo. Notes ringing past the score's end are cut at the end.
+ */
 export function scoreToMidi(score: Score): Uint8Array {
   validateEvents(score.events);
   if (!Number.isFinite(score.options.tempo) || score.options.tempo < 30 || score.options.tempo > 240) throw new RangeError('Invalid export tempo');
-  if (!Number.isFinite(score.length) || score.length <= 0 || score.length * 480 > 0x0fffffff || score.events.some(e => e.start + e.duration > score.length + 1e-8)) throw new RangeError('Invalid export score length');
+  if (!Number.isFinite(score.length) || score.length <= 0 || score.length * 480 > 0x0fffffff || score.events.some(e => e.start >= score.length)) throw new RangeError('Invalid export score length');
   const entries: { tick: number; order: number; data: number[] }[] = [];
   const tempo = Math.round(60_000_000 / score.options.tempo);
   entries.push(
-    { tick: 0, order: -3, data: metaText(3, `AudioBus Composer — ${score.options.emotion} (${score.options.algorithm})`) },
+    { tick: 0, order: -3, data: metaText(3, `AudioBus Composer — ${score.options.genre} · ${score.options.emotion} (${score.options.algorithm})`) },
     { tick: 0, order: -2, data: [255, 81, 3, ...be(tempo, 3)] },
     { tick: 0, order: -1, data: [255, 88, 4, 4, 2, 24, 8] },
   );
   // Embed section and chord markers as standard MIDI meta events for DAWs.
   for (const phrase of score.phrases) {
     entries.push({ tick: Math.round(phrase.start * 480), order: -1, data: metaText(6, `${phrase.section} (${phrase.mode})`) });
+    for (const bytes of phrase.setup ?? []) entries.push({ tick: Math.round(phrase.start * 480), order: -1, data: [...bytes] });
     for (const bar of phrase.bars) {
       entries.push({ tick: Math.round(bar.start * 480), order: -1, data: metaText(1, bar.roman ? `${bar.chord} (${bar.roman})` : bar.chord) });
     }
@@ -42,7 +52,7 @@ export function scoreToMidi(score: Score): Uint8Array {
     list.sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
     for (let i = 0; i < list.length; i++) {
       const e = list[i], channel = e.channel - 1;
-      const end = Math.min(e.start + e.duration, list[i + 1]?.start ?? Infinity);
+      const end = Math.min(e.start + e.duration, list[i + 1]?.start ?? Infinity, score.length);
       // Simultaneous collisions choose the last event, matching the sorted live queue.
       if (end <= e.start) continue;
       entries.push({ tick: Math.round(e.start * 480), order: 1, data: [144 | channel, e.pitch, Math.max(1, Math.round(e.velocity * 127))] });

@@ -1,11 +1,15 @@
-import type { ComposerOptions } from './types.js';
-import { clamp, EMOTIONS, euclidean, lifeStep, mod, random, trainMarkov, weighted } from './theory.js';
+import type { ComposerOptions, ResolvedMode } from './types.js';
+import { clamp, EMOTIONS, euclidean, lifeStep, mod, nearestDegree, random, trainMarkov, weighted } from './theory.js';
 
 export interface Material { degrees: number[]; gates: number[]; explanation: string }
 
 export interface MaterialContext {
   chordDegree?: number;
   sectionIndex?: number;
+  /** Scale used to project chromatic engines such as the torus walk onto degrees. */
+  mode?: ResolvedMode;
+  /** Alternative seeded proposal for the same bar; 0 is the canonical one. */
+  variant?: number;
 }
 
 /** Small GA: protected anchors, tournament selection, interior crossover and mutation. */
@@ -41,7 +45,7 @@ export function evolveMotif(seed: readonly number[], rng: () => number, generati
 
 /** Generates eight eighth-note candidates; theory chooses anchors and realizations later. */
 export function material(options: ComposerOptions, phrase: number, bar: number, motif: readonly number[], context: MaterialContext = {}): Material {
-  const rng = random(`${options.seed}:material:${phrase}:${bar}:${options.algorithm}`);
+  const rng = random(`${options.seed}:material:${phrase}:${bar}:${options.algorithm}${context.variant ? `:v${context.variant}` : ''}`);
   const profile = EMOTIONS[options.emotion];
   const density = clamp(2 + Math.round(options.energy * 5), 1, 8);
   const rotation = (bar + (profile.groove === 'spark' || profile.groove === 'angular' ? 1 : 0)) % 4;
@@ -114,10 +118,9 @@ export function material(options: ComposerOptions, phrase: number, bar: number, 
         if (move < .45) fifths += profile.contour < 0 ? -1 : 1;
         else if (move < .75) thirds += rng() < .5 ? 1 : -1;
         else fifths += rng() < .5 ? -1 : 1;
-        const pc = mod(fifths * 7 + thirds * 4, 12);
-        return Math.round(pc * 6 / 11);
+        return nearestDegree(mod(fifths * 7 + thirds * 4, 12), context.mode ?? 'major');
       });
-      explanation = 'Tonnetz fifth/third torus walk projected onto scale degrees and harmonically anchored';
+      explanation = 'Tonnetz fifth/third torus walk quantised to the nearest scale degree';
       break;
     }
     case 'euclidean': {
@@ -140,4 +143,33 @@ export function material(options: ComposerOptions, phrase: number, bar: number, 
   }
   gates[0] = 1;
   return { degrees, gates, explanation };
+}
+
+export type ElaborationOp = 'passing' | 'neighbour' | 'anticipation' | 'arpeggiate';
+
+/**
+ * Re-decorates the weak eighths of existing material while keeping its strong-beat skeleton, so a returning
+ * section is recognisably the same tune with a different surface (theme and variations).
+ */
+export function elaborate(source: Material, op: ElaborationOp, chordDegree: number, rng: () => number): Material {
+  const degrees = [...source.degrees], gates = [...source.gates];
+  for (let slot = 1; slot < 8; slot += 2) {
+    const before = degrees[slot - 1], after = slot < 7 ? degrees[slot + 1] : chordDegree;
+    switch (op) {
+      case 'passing':
+        if (Math.abs(after - before) === 2) { gates[slot] = 1; degrees[slot] = (before + after) / 2; }
+        else if (gates[slot]) degrees[slot] = mod(before + Math.sign(after - before || 1), 7);
+        break;
+      case 'neighbour':
+        if (gates[slot]) degrees[slot] = mod(before + (rng() < .5 ? -1 : 1), 7);
+        break;
+      case 'anticipation':
+        if (slot === 3 || slot === 7) { gates[slot] = 1; degrees[slot] = mod(after, 7); }
+        break;
+      case 'arpeggiate':
+        if (gates[slot]) degrees[slot] = mod(chordDegree + (rng() < .5 ? 2 : 4), 7);
+        break;
+    }
+  }
+  return { degrees, gates, explanation: `${source.explanation}; ${op} elaboration over the returning skeleton` };
 }

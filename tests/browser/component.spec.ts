@@ -107,3 +107,30 @@ test('hosted integration keeps graph output and transport ownership when its pan
   expect(result.notes).toBeGreaterThan(0);
   expect(result.active).toBe(0);
 });
+
+test('every genre renders a phrase, suggests its tempo and names its idiom', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  const genres = await composer.getByLabel('Genre').locator('option').evaluateAll(options => options.map(o => [(o as HTMLOptionElement).value, o.textContent]));
+  expect(genres.length).toBe(13);
+  for (const [value, label] of genres) {
+    await composer.getByLabel('Genre').selectOption(value!);
+    await expect(composer.locator('#score-meta')).toContainText(label!);
+    await expect(composer.locator('.chord')).toHaveCount(8);
+    await expect(composer.locator('.tension-target')).toHaveCount(8);
+  }
+  await composer.getByLabel('Genre').selectOption('jazz');
+  await expect(composer.getByLabel('Tempo / BPM')).toHaveValue('160');
+  expect(errors).toEqual([]);
+});
+
+test('energy changes while playing enter at the next bar, not the next phrase', async ({ page }) => {
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  await page.evaluate(() => { (document.querySelector('audiobus-composer') as any).setOutput({ label: 'Test', send: () => {} }); });
+  await composer.getByRole('button', { name: 'Start composing' }).click();
+  await composer.getByLabel('Energy', { exact: true }).fill('0.95');
+  await expect(composer.locator('#applied')).toContainText('enter at the next bar');
+  await composer.getByRole('button', { name: 'Stop', exact: true }).click();
+});

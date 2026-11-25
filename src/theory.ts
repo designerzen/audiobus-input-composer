@@ -37,6 +37,39 @@ export const EMOTIONS: Record<EmotionFamily, EmotionProfile> = {
 
 export const mod = (n: number, d: number): number => ((n % d) + d) % d;
 export const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
+export const NOTE_NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'] as const;
+
+/** Modes ordered from brightest to darkest; neighbours differ by about one altered degree. */
+export const BRIGHTNESS: readonly ResolvedMode[] = ['lydian', 'major', 'mixolydian', 'dorian', 'minor', 'harmonic-minor', 'phrygian', 'locrian'];
+
+/**
+ * Intensity moves the emotion's mode along the brightness axis: the top intensity pushes bright modes brighter
+ * and dark modes darker, the lowest pulls them toward the centre without crossing it. A genre may restrict modes.
+ */
+export function resolveMode(base: ResolvedMode, intensity: number, allowed?: readonly ResolvedMode[]): ResolvedMode {
+  const start = BRIGHTNESS.indexOf(base), bright = start <= 2, outward = bright ? -1 : 1;
+  let index = intensity > .85 ? start + outward : intensity < .2 ? start - outward : start;
+  index = clamp(index, 0, BRIGHTNESS.length - 1);
+  if ((index <= 2) !== bright) index = start;
+  if (!allowed?.length || allowed.includes(BRIGHTNESS[index])) return BRIGHTNESS[index];
+  // Nearest permitted mode, preferring the same side of the axis.
+  return [...allowed].sort((a, b) => {
+    const da = Math.abs(BRIGHTNESS.indexOf(a) - index) + ((BRIGHTNESS.indexOf(a) <= 2) !== bright ? .5 : 0);
+    const db = Math.abs(BRIGHTNESS.indexOf(b) - index) + ((BRIGHTNESS.indexOf(b) <= 2) !== bright ? .5 : 0);
+    return da - db;
+  })[0];
+}
+
+/** Scale degree whose pitch class is closest to pc (relative to the tonic) on the circle. */
+export function nearestDegree(pc: number, mode: ResolvedMode): number {
+  const scale = SCALES[mode];
+  let best = 0;
+  for (let d = 1; d < 7; d++) {
+    const dist = (x: number) => Math.min(mod(x - pc, 12), mod(pc - x, 12));
+    if (dist(scale[d]) < dist(scale[best])) best = d;
+  }
+  return best;
+}
 
 /** FNV-1a seed hash followed by Mulberry32; stable across query order. */
 export function random(seed: string): () => number {

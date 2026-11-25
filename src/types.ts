@@ -7,6 +7,11 @@ export type Mode = typeof MODES[number];
 export type ResolvedMode = Exclude<Mode, 'auto'>;
 export const PARTS = ['melody', 'bass', 'harmony', 'percussion'] as const;
 export type Part = typeof PARTS[number];
+export const GENRES = ['pop', 'house', 'techno', 'boom-bap', 'trap', 'jazz', 'bossa', 'reggae', 'rock', 'galant', 'minimal', 'ambient', 'chiptune'] as const;
+export type Genre = typeof GENRES[number];
+/** Closed cadences end on the tonic; half and deceptive cadences, and open loops, ask for another phrase. */
+export const CADENCES = ['authentic', 'plagal', 'arrival', 'half', 'deceptive', 'open'] as const;
+export type Cadence = typeof CADENCES[number];
 
 export interface ComposerOptions {
   seed: string;
@@ -17,9 +22,12 @@ export interface ComposerOptions {
   root: number;
   mode: Mode;
   algorithm: Algorithm;
+  genre: Genre;
   bars: number;
   swing: number;
   parts: Part[];
+  /** Send General MIDI Program Change hints for the genre's instruments. */
+  programs: boolean;
 }
 
 export interface NoteEvent {
@@ -42,8 +50,11 @@ export interface BarPlan {
   roman?: string;
   degree: number;
   pitches: number[];
-  function: 'presentation' | 'continuation' | 'half cadence' | 'cadence';
+  function: 'presentation' | 'continuation' | 'half cadence' | 'deceptive cadence' | 'cadence';
+  /** Estimated tension of the chosen bar, 0–1. */
   tension: number;
+  /** Tension the emotion and energy asked for. */
+  targetTension: number;
 }
 
 export interface Phrase {
@@ -51,15 +62,22 @@ export interface Phrase {
   start: number;
   length: number;
   section: string;
+  genre: Genre;
+  /** Tonic pitch class of this phrase; differs from options.root after a section key lift. */
+  root: number;
   options: ComposerOptions;
   mode: ResolvedMode;
+  cadence: Cadence;
+  closed: boolean;
   bars: BarPlan[];
   events: NoteEvent[];
+  /** Channel messages to send before the first note, such as Program Change. */
+  setup?: number[][];
 }
 
 export interface Score {
   schemaVersion: 1;
-  generatorVersion: '0.1.0';
+  generatorVersion: string;
   options: ComposerOptions;
   length: number;
   phrases: Phrase[];
@@ -72,8 +90,13 @@ export interface MidiSink {
 }
 
 export interface MidiOutputAdapter {
-  send(bytes: readonly number[]): void;
+  /** timestamp is a performance.now() time, passed only to adapters that declare timestamps. */
+  send(bytes: readonly number[], timestamp?: number): void;
   label?: string;
+  /** The output can schedule messages ahead, as Web MIDI can. */
+  timestamps?: boolean;
+  /** Cancel messages scheduled ahead but not yet sent. */
+  clear?(): void;
 }
 
 export interface DispatchRecord {
@@ -81,4 +104,6 @@ export interface DispatchRecord {
   time: number;
   bytes: number[];
   eventId: string;
+  /** Scheduled delivery time when the output accepts timestamps. */
+  at?: number;
 }

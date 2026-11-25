@@ -4,7 +4,7 @@ An autonomous composer that creates musical events from rules, musical memory, t
 
 The aim is to let a person establish a musical identity, steer its expression and hear it develop without entering every note. The composer should remember themes, coordinate parts, create contrast, leave space and bring phrases to meaningful endings. Its decisions should be understandable, reproducible and open to adjustment.
 
-**Current status:** version 0.1 includes a working TypeScript composition library, an `<audiobus-composer>` web component, a browser demo, AudioBus/MIDI output adapters, automated tests and GitHub Pages deployment workflows. The research library describes a broader programme than the current implementation.
+**Current status:** version 0.2 includes a working TypeScript composition library with thirteen genre idioms, an `<audiobus-composer>` web component, a browser demo, AudioBus/MIDI output adapters, automated tests and GitHub Pages deployment workflows. The research library describes a broader programme than the current implementation.
 
 ## Run it
 
@@ -15,7 +15,7 @@ pnpm install
 pnpm dev
 ```
 
-Open the local address printed by Vite. Choose an emotion, set Energy and press **Start composing**. The instrument develops successive eight-bar phrases until Stop or Finish phrase. Control changes apply to the next phrase; Stop immediately releases owned notes. Browser audition requires the Start gesture. You can also choose a MIDI output or attach an existing AudioBus Peer.
+Open the local address printed by Vite. Choose a genre and an emotion, set Energy and press **Start composing**. The instrument develops successive eight-bar phrases until Stop or Finish phrase. Energy, swing and ensemble changes enter at the next bar; other changes apply to the next phrase; Stop immediately releases owned notes. Browser audition requires the Start gesture. You can also choose a MIDI output or attach an existing AudioBus Peer.
 
 ```sh
 pnpm check          # Type checking
@@ -60,7 +60,7 @@ The deployed site includes standalone ESM modules under `library/` for embedding
 
 ## Implemented musical foundation
 
-Seven material engines—motif development, Markov memory, Game of Life, evolutionary search, Fibonacci rewriting, Euclidean patterns and torus walks—feed one theory-guided planner. It provides an eight-bar presentation/answer structure, dominant preparation and tonic cadence, major/minor/modal collections, chord-tone anchors, motif elaboration, bounded contour, three-voice inversion search, bass roles, percussion activity and swing.
+Thirteen genre idioms (pop, house, techno, boom-bap, trap, jazz, bossa nova, reggae, rock, galant, minimalist, ambient and chiptune) set groove, harmony, part behaviour and form. Seven material engines—motif development, Markov memory, Game of Life, evolutionary search, Fibonacci rewriting, Euclidean patterns and torus walks—propose melodies; the one closest to the emotion's tension curve is kept. See [the implementation notes](docs/implementation.md#genres). It provides an eight-bar presentation/answer structure, dominant preparation and tonic cadence, major/minor/modal collections, chord-tone anchors, motif elaboration, bounded contour, three-voice inversion search, bass roles, percussion activity and swing.
 
 The Plutchik interface retains PhotoSYNTH's original 32 SVG paths and maps them to 24 named selections. Energy remains independent of intensity. Scores preserve part, degree, motif and decision provenance; exports provide MIDI and JSON. Live performance logs preserve phrase snapshots and actual MIDI dispatches.
 

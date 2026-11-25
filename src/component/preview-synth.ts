@@ -168,8 +168,8 @@ export class PreviewSynth implements MidiOutputAdapter {
       osc.connect(gain); gain.connect(master);
       osc.start(time); osc.stop(time + .07);
       osc.onended = () => { osc.disconnect(); gain.disconnect(); };
-    } else if (pitch === 38) {
-      // Snare: bandpass noise burst + 190Hz tone body.
+    } else if (pitch === 38 || pitch === 39) {
+      // Snare and clap: bandpass noise burst + 190Hz tone body.
       const noise = ctx.createBufferSource(); noise.buffer = this.noise!;
       const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1900; bp.Q.value = .8;
       const nGain = ctx.createGain();
@@ -188,9 +188,9 @@ export class PreviewSynth implements MidiOutputAdapter {
     } else {
       // Hi-hats (42 closed, 46 open) and ride/cymbal (51).
       const noise = ctx.createBufferSource(); noise.buffer = this.noise!;
-      const hp = ctx.createBiquadFilter(); hp.type = pitch === 51 ? 'bandpass' : 'highpass';
+      const hp = ctx.createBiquadFilter(); hp.type = pitch === 51 || pitch === 49 ? 'bandpass' : 'highpass';
       hp.frequency.value = pitch === 51 ? 5200 : 7400;
-      const decay = pitch === 51 ? .34 : pitch === 46 ? .22 : .05;
+      const decay = pitch === 49 ? .9 : pitch === 51 ? .34 : pitch === 46 ? .22 : .05;
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(vel * (pitch === 51 ? .32 : .38), time);
       gain.gain.exponentialRampToValueAtTime(.0001, time + decay);
