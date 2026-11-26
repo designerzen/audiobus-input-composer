@@ -9,6 +9,8 @@ export const PARTS = ['melody', 'bass', 'harmony', 'percussion'] as const;
 export type Part = typeof PARTS[number];
 export const GENRES = ['pop', 'house', 'techno', 'boom-bap', 'trap', 'jazz', 'bossa', 'reggae', 'rock', 'galant', 'minimal', 'ambient', 'chiptune'] as const;
 export type Genre = typeof GENRES[number];
+export const PERFORMANCE_CUES = ['crescendo', 'breakdown', 'bridge', 'drop', 'key-change', 'resolve'] as const;
+export type PerformanceCue = typeof PERFORMANCE_CUES[number];
 /**
  * Closed cadences end on the tonic; half and deceptive cadences, and open loops, ask for another phrase.
  * A modulating cadence ends on the dominant of the next phrase's key.
@@ -76,6 +78,8 @@ export interface Phrase {
   mode: ResolvedMode;
   cadence: Cadence;
   closed: boolean;
+  /** Active performance cue that shaped this phrase, if any. */
+  cue?: PerformanceCue;
   bars: BarPlan[];
   events: NoteEvent[];
   /** Channel messages to send before the first note, such as Program Change. */

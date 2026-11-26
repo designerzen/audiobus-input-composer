@@ -87,20 +87,25 @@ export class Transport {
     this.sendSetup(score.setup, 0);
   }
 
-  /** Replace every attack from fromBeat onwards. Notes already started keep their own release. */
-  replaceFrom(fromBeat: number, events: readonly NoteEvent[]): void {
+  /** Replace every attack from fromBeat onwards, optionally shortening the score to endBeat. Notes already started keep their own release. */
+  replaceFrom(fromBeat: number, events: readonly NoteEvent[], endBeat?: number): void {
     if (!this.running) return;
     validateEvents(events);
-    if (fromBeat <= this.horizon || events.some(e => e.start < fromBeat - 1e-9 || e.start + e.duration > this.endBeat + MAX_OVERHANG)) throw new RangeError('Replacement must start after the dispatched horizon');
+    const limit = endBeat ?? this.endBeat;
+    if (fromBeat <= this.horizon || limit < fromBeat - 1e-9 || limit > this.endBeat + 1e-9 || events.some(e => e.start < fromBeat - 1e-9 || e.start + e.duration > limit + MAX_OVERHANG)) {
+      throw new RangeError('Replacement must start after the dispatched horizon');
+    }
     const kept = this.queue.slice(this.cursor).filter(item => item.event.start < fromBeat - 1e-9);
     this.queue = this.sorted([...kept, ...this.schedule(events, fromBeat)]);
     this.cursor = 0;
     this.events = [...this.events.filter(e => e.start < fromBeat - 1e-9), ...events];
+    if (endBeat !== undefined) this.endBeat = limit;
   }
 
   /** Internal clock only: jump to a beat of the current score. Sounding notes are released; notes resume at the next attack. */
-  seek(beat: number): void {
+  seek(beat: number, reset?: { events: readonly NoteEvent[]; length: number }): void {
     if (!this.running || this.hosted || !Number.isFinite(beat)) return;
+    if (reset) { this.events = reset.events; this.endBeat = reset.length; }
     const to = Math.min(Math.max(0, beat), this.endBeat - 1e-6), stopBeat = this.beat, now = this.now();
     if (this.lookahead) try { this.output.clear?.(); } catch { /* Output disconnected. */ }
     const releasing = [...this.active.values()]; this.active.clear();

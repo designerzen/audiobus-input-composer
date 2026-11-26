@@ -1,17 +1,20 @@
-import { ALGORITHMS, FAMILIES, GENRES, PARTS, type ComposerOptions, type DispatchRecord, type EmotionFamily, type Genre, type MidiOutputAdapter, type MidiSink, type Mode, type Phrase, type Score } from '../types.js';
+import { ALGORITHMS, FAMILIES, GENRES, PARTS, PERFORMANCE_CUES, type ComposerOptions, type DispatchRecord, type EmotionFamily, type Genre, type MidiOutputAdapter, type MidiSink, type Mode, type PerformanceCue, type Phrase, type Score } from '../types.js';
 import { GENRE_PROFILES, genreTempo } from '../genres.js';
 import { GENERATOR_VERSION } from '../version.js';
-import { compose, DEFAULT_OPTIONS, normalizeOptions, phraseKey, pitchName } from '../composer.js';
-import { EMOTIONS, clamp, mod } from '../theory.js';
+import { compose, composePhrase, DEFAULT_OPTIONS, normalizeOptions, phraseKey, pitchName } from '../composer.js';
+import { EMOTIONS, NOTE_NAMES, clamp, mod } from '../theory.js';
 import { audioBusOutput, scoreToMidi, webMidiOutput } from '../midi.js';
 import { ComposerSession, type PerformanceRecord } from '../session.js';
 import { MidiFollower } from '../input.js';
 import { PLUTCHIK_ART } from './plutchik-art.js';
 import { STYLES } from './styles.js';
 import { PreviewSynth } from './preview-synth.js';
-import { COMPOSER_CONTROL_CHANGE, COMPOSER_ERROR, COMPOSER_NOTE, COMPOSER_PHRASE, COMPOSER_STATE_CHANGE } from '../events.js';
+import { COMPOSER_CONTROL_CHANGE, COMPOSER_CUE, COMPOSER_ERROR, COMPOSER_NOTE, COMPOSER_PHRASE, COMPOSER_STATE_CHANGE } from '../events.js';
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const CUE_LABELS: Record<PerformanceCue, string> = {
+  crescendo: 'Crescendo', breakdown: 'Breakdown', bridge: 'Bridge', drop: 'Drop', 'key-change': 'Key change', resolve: 'Resolve',
+};
 const ALGORITHM_LABELS: Record<typeof ALGORITHMS[number], string> = {
   motif: 'Motif development', markov: 'Markov memory', life: 'Game of Life', evolution: 'Evolutionary search',
   grammar: 'L-system grammar', euclidean: 'Euclidean patterns', torus: 'Tonnetz torus walk',
@@ -55,6 +58,8 @@ export class AudioBusComposer extends HTMLElement {
   get score(): Score { return structuredClone(this.scoreValue); }
   get recording(): PerformanceRecord { return this.session.recording; }
   get playing(): boolean { return this.session.running; }
+  get queuedCue(): PerformanceCue | undefined { return this.session.queuedCue; }
+  get activeCue(): PerformanceCue | undefined { return this.session.activeCue; }
   /**
    * Host clock: the owner's transport drives the beat through advance(), so playback follows its tempo,
    * pause and stop. The Start, Stop and output controls are hidden; the host also supplies setOutput().
@@ -118,10 +123,24 @@ export class AudioBusComposer extends HTMLElement {
   configure(patch: Partial<ComposerOptions>): void {
     this.state = normalizeOptions({ ...this.state, ...patch });
     this.session.update(this.state);
-    if (!this.playing) { this.scoreValue = compose(this.state); this.renderScore(); }
+    if (!this.playing) this.renderPreview();
     this.syncControls();
     this.emit(COMPOSER_CONTROL_CHANGE, { selected: this.options, applied: this.playing ? this.session.applied : null, pending: this.playing });
   }
+  /** Arm or clear a next-bar performance change; previews the change when stopped. */
+  cue(kind: PerformanceCue | null): void {
+    this.session.cue(kind);
+    if (!this.playing) this.renderPreview();
+    this.syncPerformance();
+    this.updateAppliedMessage();
+    this.emit(COMPOSER_CUE, {
+      cue: kind,
+      queued: this.queuedCue ?? null,
+      active: this.activeCue ?? null,
+      target: this.session.nextBarTarget,
+    });
+  }
+  clearCue(): void { this.cue(null); }
   async start(): Promise<void> {
     if (this.playing) return;
     const token = ++this.playToken;
@@ -142,7 +161,8 @@ export class AudioBusComposer extends HTMLElement {
   async playFrom(bar: number): Promise<void> {
     if (this.hosted) return;
     if (!this.playing) await this.start();
-    if (this.playing) { this.session.seek(clamp(Math.floor(bar), 0, 7)); this.ensureAnimation(); }
+    const maxBar = Math.max(0, this.scoreValue.phrases[0].bars.length - 1);
+    if (this.playing) { this.session.seek(clamp(Math.floor(bar), 0, maxBar)); this.ensureAnimation(); }
   }
   finish(): void { if (this.playing) { this.session.finish(); this.setText('applied', 'Finishing at the current phrase’s tonic cadence.'); } }
   connectPeer(peer?: MidiSink): void {
@@ -219,17 +239,33 @@ export class AudioBusComposer extends HTMLElement {
     }, { clock, lookaheadMs: this.hosted ? 0 : 60 });
   }
   private onPhrase(phrase: Phrase): void {
+    const prev = this.state;
+    this.state = this.session.options;
     this.scoreValue = { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, options: phrase.options, length: phrase.length, phrases: [phrase], events: phrase.events };
     this.events = new Map(phrase.events.map(e => [e.id, e]));
     this.lastBarDrawn = -1;
     this.renderScore(); this.syncControls(); this.updateStatus(); this.ensureAnimation();
+    if (prev.root !== this.state.root || prev.energy !== this.state.energy) {
+      this.emit(COMPOSER_CONTROL_CHANGE, { selected: this.options, applied: this.session.applied, pending: false });
+    }
+    if (phrase.cue) {
+      this.emit(COMPOSER_CUE, { cue: phrase.cue, queued: this.queuedCue ?? null, active: phrase.cue, target: this.session.nextBarTarget });
+    }
     this.emit(COMPOSER_PHRASE, structuredClone(phrase));
     this.emit(COMPOSER_STATE_CHANGE, { playing: true, phrase: phrase.index });
   }
-  /** Energy, swing or ensemble changed: the rest of this phrase was recomposed from the next bar. */
+  /** Energy, swing, ensemble or performance cue changed: the rest of this phrase was recomposed from the next bar. */
   private onRevise(phrase: Phrase): void {
+    const prev = this.state;
+    this.state = this.session.options;
     this.scoreValue = { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, options: phrase.options, length: phrase.length, phrases: [phrase], events: phrase.events };
-    this.renderScore(); this.updateAppliedMessage();
+    this.renderScore(); this.syncControls(); this.updateAppliedMessage();
+    if (prev.root !== this.state.root || prev.energy !== this.state.energy) {
+      this.emit(COMPOSER_CONTROL_CHANGE, { selected: this.options, applied: this.session.applied, pending: false });
+    }
+    if (phrase.cue) {
+      this.emit(COMPOSER_CUE, { cue: phrase.cue, queued: this.queuedCue ?? null, active: phrase.cue, target: this.session.nextBarTarget });
+    }
     this.emit(COMPOSER_PHRASE, structuredClone(phrase));
   }
   private onDispatch(record: DispatchRecord): void {
@@ -281,6 +317,7 @@ export class AudioBusComposer extends HTMLElement {
     (this.view.getElementById('finish') as HTMLButtonElement).disabled = !this.playing;
     if (!this.playing) this.setText('applied', reason === 'suspended' ? 'Playback paused after a timing interruption. Start to begin a fresh phrase.' : 'Ready. Start composing, then steer the next phrase with emotion and energy.');
     this.setText('output-label', this.output.label ?? 'Custom output');
+    this.syncPerformance();
   }
   private syncControls(): void {
     if (!this.ready) return;
@@ -309,18 +346,67 @@ export class AudioBusComposer extends HTMLElement {
       path.setAttribute('tabindex', selected && !tabAssigned ? '0' : '-1');
       if (selected) tabAssigned = true;
     });
+    this.syncPerformance();
     this.updateAppliedMessage();
+  }
+  private syncPerformance(): void {
+    if (!this.ready) return;
+    const queued = this.queuedCue;
+    const active = this.playing ? this.activeCue : undefined;
+    const target = this.session.nextBarTarget;
+    const profile = GENRE_PROFILES[this.state.genre];
+    const bridgeName = profile.form.find(s => s.role === 'contrast')?.name ?? 'Bridge';
+    const dropName = profile.form.find(s => s.role === 'return')?.name ?? 'Drop';
+    const activeRoot = this.state.root;
+    const hints: Record<PerformanceCue, string> = {
+      crescendo: 'Swell & build',
+      breakdown: 'Strip back',
+      bridge: bridgeName === 'Bridge' ? 'Contrast shift' : `→ ${bridgeName}`,
+      drop: dropName === 'Drop' ? 'Full band peak' : `→ ${dropName}`,
+      'key-change': `${NOTE_NAMES[activeRoot]} → ${NOTE_NAMES[mod(activeRoot + 2, 12)]}`,
+      resolve: 'Tonic cadence',
+    };
+    this.view.querySelectorAll<HTMLButtonElement>('.cue[data-cue]').forEach(btn => {
+      const kind = btn.dataset.cue as PerformanceCue;
+      const armed = queued === kind;
+      const live = !armed && active === kind;
+      btn.classList.toggle('armed', armed);
+      btn.classList.toggle('active-cue', live);
+      btn.setAttribute('aria-pressed', String(armed));
+      const hint = btn.querySelector<HTMLElement>('[data-cue-hint]');
+      if (hint) hint.textContent = hints[kind];
+    });
+    const clearBtn = this.view.getElementById('perf-clear') as HTMLButtonElement | null;
+    if (clearBtn) clearBtn.hidden = !queued;
+    this.setText('perf-target', this.playing ? (target.nextPhrase ? 'Next bar · Next phrase (Bar 1)' : `Next bar · Bar ${target.bar + 1}`) : 'Next bar · Bar 1');
+    this.setText('perf-status', queued
+      ? (this.playing ? `${CUE_LABELS[queued]} armed for ${target.nextPhrase ? 'next phrase' : `bar ${target.bar + 1}`}` : `${CUE_LABELS[queued]} armed for start`)
+      : active
+        ? `Active: ${CUE_LABELS[active]}`
+        : 'Choose a change for the next bar');
+    const barTarget = this.playing && !target.nextPhrase ? target.bar : -1;
+    this.view.querySelectorAll<HTMLElement>('.chord[data-bar]').forEach(el => {
+      const idx = Number(el.dataset.bar);
+      const isNext = idx === barTarget;
+      el.classList.toggle('next-bar', isNext);
+      el.classList.toggle('cue-armed', isNext && !!queued);
+      const badge = el.querySelector<HTMLElement>('.bar-cue');
+      if (badge) badge.textContent = isNext ? (queued ? CUE_LABELS[queued] : 'Next') : '';
+    });
   }
   private updateAppliedMessage(): void {
     if (!this.ready || !this.playing) return;
     const applied = this.session.applied, pending = this.session.pending;
-    const barsLeft = Math.max(1, 8 - Math.floor(this.session.beat / 4));
+    const totalBars = this.scoreValue.phrases[0]?.bars.length ?? 8;
+    const barsLeft = Math.max(1, totalBars - Math.floor(this.session.beat / 4));
     const now = `${GENRE_PROFILES[applied.genre].label} · ${titleCase(applied.emotion)} · ${Math.round(applied.energy * 100)} energy · ${applied.tempo} BPM`;
     this.setText('applied', pending.phrase
       ? `Selected changes apply next phrase (in ${barsLeft} ${barsLeft === 1 ? 'bar' : 'bars'}). Now: ${now}.`
       : pending.bar
         ? `Energy, swing and ensemble enter at the next bar. Now: ${now}.`
-        : `Applied: ${now}. Energy enters at the next bar; other changes at the eight-bar boundary.`);
+        : pending.cue
+          ? `${CUE_LABELS[pending.cue]} enters at the next bar. Now: ${now}.`
+          : `Applied: ${now}. Energy enters at the next bar; other changes at the eight-bar boundary.`);
   }
   private onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -373,11 +459,22 @@ export class AudioBusComposer extends HTMLElement {
     if (path) { this.selectPath(path); return; }
     const button = target.closest('button');
     if (!button) return;
+    if (button.dataset.cue !== undefined) {
+      const kind = button.dataset.cue as PerformanceCue;
+      this.cue(this.queuedCue === kind ? null : kind);
+      return;
+    }
     if (button.dataset.bar !== undefined) { void this.playFrom(Number(button.dataset.bar)); return; }
     switch (button.id) {
       case 'start': void this.start(); break;
       case 'stop': this.stop(); break;
       case 'finish': this.finish(); break;
+      case 'perf-clear': {
+        const prev = this.queuedCue;
+        this.clearCue();
+        if (prev) this.view.querySelector<HTMLButtonElement>(`.cue[data-cue="${prev}"]`)?.focus();
+        break;
+      }
       case 'reroll': this.configure({ seed: `theme-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`, motif: undefined }); break;
       case 'tap': this.tapTempo(); break;
       case 'capture': try { this.usePlayedTheme(); } catch (e) { this.reportError(e); } break;
@@ -415,6 +512,19 @@ export class AudioBusComposer extends HTMLElement {
     }
     const bar = target.closest<HTMLElement>('.chord[data-bar]');
     if (bar && this.moveBarFocus(bar, event.key)) { event.preventDefault(); return; }
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && !target.closest('input[type=text], input[type=number], select, textarea')) {
+      if (/^[1-6]$/.test(event.key)) {
+        event.preventDefault();
+        const kind = PERFORMANCE_CUES[Number(event.key) - 1];
+        this.cue(this.queuedCue === kind ? null : kind);
+        return;
+      }
+      if (event.key === 'Escape' && this.queuedCue) {
+        event.preventDefault();
+        this.clearCue();
+        return;
+      }
+    }
     if (!this.hosted && (event.key === 't' || event.key === 'T') && !event.ctrlKey && !event.metaKey && !event.altKey && !target.closest('input[type=text], input[type=number], select, textarea')) {
       this.tapTempo(); return;
     }
@@ -443,25 +553,59 @@ export class AudioBusComposer extends HTMLElement {
     for (const port of this.midiAccess?.outputs.values() ?? []) if (port.state === 'connected') el.add(new Option(port.name ?? 'MIDI output', port.id));
     el.value = selected;
   }
+  private renderPreview(): void {
+    const queued = this.queuedCue;
+    if (!queued) {
+      this.scoreValue = compose(this.state);
+      this.renderScore();
+      return;
+    }
+    let opts = this.state;
+    let index = 0;
+    if (queued === 'key-change') opts = normalizeOptions({ ...opts, root: mod(opts.root + 2, 12) });
+    else if (queued === 'drop') opts = normalizeOptions({ ...opts, energy: clamp(Math.max(opts.energy + .18, .78), 0, 1) });
+    else if (queued === 'crescendo') opts = normalizeOptions({ ...opts, energy: clamp(Math.max(opts.energy + .3, .8), 0, 1) });
+    if (queued === 'bridge' || queued === 'drop') {
+      const wantRole = queued === 'bridge' ? 'contrast' : 'return';
+      const form = GENRE_PROFILES[opts.genre].form;
+      const slot = form.findIndex(s => s.role === wantRole);
+      if (slot >= 0) index = slot;
+    }
+    const phrase = composePhrase(opts, index, 0, {
+      final: queued === 'resolve',
+      cue: queued,
+      cueFromBar: 0,
+      ...(queued === 'crescendo' ? { cueStartEnergy: this.state.energy } : {}),
+    });
+    this.scoreValue = { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, options: opts, length: phrase.length, phrases: [phrase], events: phrase.events };
+    this.renderScore();
+  }
   private renderScore(): void {
     if (!this.ready) return;
     const phrase = this.scoreValue.phrases[0];
     this.events = new Map(this.scoreValue.events.map(e => [e.id, e]));
-    this.setText('score-meta', `${titleCase(phrase.section)} · ${GENRE_PROFILES[phrase.genre].label} · ${this.scoreValue.options.tempo} BPM · ${MODE_LABELS[phrase.mode]} · ${phrase.cadence} cadence · ${this.scoreValue.events.length} events${this.scoreValue.length > 32 ? ' · showing first 8 bars' : ''}`);
+    const barCount = phrase.bars.length;
+    const displayBeats = Math.max(32, phrase.length);
+    const cueSuffix = phrase.cue ? ` · ${CUE_LABELS[phrase.cue]}` : '';
+    this.setText('score-meta', `${titleCase(phrase.section)} · ${GENRE_PROFILES[phrase.genre].label} · ${this.scoreValue.options.tempo} BPM · ${MODE_LABELS[phrase.mode]} · ${phrase.cadence} cadence${cueSuffix} · ${this.scoreValue.events.length} events${this.scoreValue.length > 32 ? ' · showing first 8 bars' : ''}`);
     const width = 960, left = 37, inner = width - left, height = 200;
-    const visible = phrase.events.filter(e => e.start < phrase.start + 32);
+    const visible = phrase.events.filter(e => e.start < phrase.start + displayBeats);
     const melodic = visible.filter(e => e.part !== 'percussion');
     const drums = visible.filter(e => e.part === 'percussion');
-    const width32 = (e: { start: number; duration: number }) => Math.min(e.duration, phrase.start + 32 - e.start) / 32 * inner;
+    const widthBeats = (e: { start: number; duration: number }) => Math.min(e.duration, phrase.start + displayBeats - e.start) / displayBeats * inner;
     const low = Math.min(36, ...melodic.map(e => e.pitch)), high = Math.max(84, ...melodic.map(e => e.pitch));
     const y = (pitch: number) => 18 + (high - pitch) / (high - low) * 126;
     let svg = `<svg class="roll" viewBox="0 0 ${width} ${height}" role="img" aria-label="Eight-bar piano roll: melody, bass, harmony and percussion. Chord functions are listed below.">`;
     for (let p = low; p <= high; p++) if (p % 12 === 0) svg += `<line class="minor-grid" x1="${left}" x2="${width}" y1="${y(p)}" y2="${y(p)}"/><text x="4" y="${y(p) + 3}">C${p / 12 - 1}</text>`;
     svg += `<line class="drum-sep" x1="${left}" x2="${width}" y1="154" y2="154"/><text x="4" y="170">DR</text>`;
-    for (let b = 0; b <= 32; b++) { const x = left + b / 32 * inner; svg += `<line class="${b % 4 ? 'minor-grid' : 'grid-line'}" x1="${x}" x2="${x}" y1="14" y2="182"/>`; if (b % 4 === 0 && b < 32) svg += `<text x="${x + 5}" y="195">${b / 4 + 1}</text>`; }
-    for (const e of melodic) svg += `<rect class="note" data-event-id="${e.id}" x="${left + (e.start - phrase.start) / 32 * inner}" y="${y(e.pitch) - 2}" width="${Math.max(2, width32(e))}" height="4" rx="1.5" fill="${COLOURS[e.part]}" opacity="${.5 + e.velocity * .5}"/>`;
+    for (let b = 0; b <= displayBeats; b++) { const x = left + b / displayBeats * inner; svg += `<line class="${b % 4 ? 'minor-grid' : 'grid-line'}" x1="${x}" x2="${x}" y1="14" y2="182"/>`; if (b % 4 === 0 && b < displayBeats) svg += `<text x="${x + 5}" y="195">${b / 4 + 1}</text>`; }
+    if (phrase.length < displayBeats) {
+      const cutX = left + phrase.length / displayBeats * inner;
+      svg += `<rect class="roll-cut" x="${cutX}" y="14" width="${width - cutX}" height="168"/><line class="cut-line" x1="${cutX}" x2="${cutX}" y1="12" y2="184"/>`;
+    }
+    for (const e of melodic) svg += `<rect class="note" data-event-id="${e.id}" x="${left + (e.start - phrase.start) / displayBeats * inner}" y="${y(e.pitch) - 2}" width="${Math.max(2, widthBeats(e))}" height="4" rx="1.5" fill="${COLOURS[e.part]}" opacity="${.5 + e.velocity * .5}"/>`;
     for (const d of drums) {
-      const dx = left + (d.start - phrase.start) / 32 * inner;
+      const dx = left + (d.start - phrase.start) / displayBeats * inner;
       const dy = d.pitch === 36 ? 176 : d.pitch >= 37 && d.pitch <= 40 ? 168 : 161;
       svg += `<circle class="note" data-event-id="${d.id}" cx="${dx}" cy="${dy}" r="${d.pitch === 36 ? 2.6 : 1.9}" fill="${COLOURS.percussion}" opacity="${.45 + d.velocity * .55}"/>`;
     }
@@ -470,33 +614,39 @@ export class AudioBusComposer extends HTMLElement {
     // Rebuilding the bars must not lose keyboard focus while a phrase or revision arrives.
     const chords = this.view.getElementById('chords')!;
     const focused = (this.view.activeElement as HTMLElement | null)?.dataset.bar;
-    const tabStop = Number(focused ?? (this.playing ? Math.max(0, this.lastBarDrawn) : 0));
+    const tabStop = clamp(Number(focused ?? (this.playing ? Math.max(0, this.lastBarDrawn) : 0)), 0, Math.max(0, barCount - 1));
     chords.innerHTML = phrase.bars.map((bar, i) =>
-      `<button class="chord ${bar.function.endsWith('cadence') || bar.function === 'modulation' ? 'cadence' : ''}" data-bar="${i}" tabindex="${i === tabStop ? 0 : -1}" aria-label="Bar ${i + 1}: ${bar.chord}${bar.roman ? ` (${bar.roman})` : ''}, ${bar.function}. Play from here."><span class="chord-top"><span class="number">${String(i + 1).padStart(2, '0')}</span><span class="roman">${bar.roman ?? ''}</span></span><strong>${bar.chord}</strong><small>${bar.function}</small><span class="tension-bar" title="Tension ${Math.round(bar.tension * 100)}% (target ${Math.round(bar.targetTension * 100)}%)"><span class="tension-fill" style="width:${Math.round(bar.tension * 100)}%"></span><span class="tension-target" style="left:${Math.round(bar.targetTension * 100)}%"></span></span></button>`
+      `<button class="chord ${bar.function.endsWith('cadence') || bar.function === 'modulation' ? 'cadence' : ''}" data-bar="${i}" tabindex="${i === tabStop ? 0 : -1}" aria-label="Bar ${i + 1}: ${bar.chord}${bar.roman ? ` (${bar.roman})` : ''}, ${bar.function}. Play from here."><span class="chord-top"><span class="number">${String(i + 1).padStart(2, '0')}</span><span class="bar-cue"></span><span class="roman">${bar.roman ?? ''}</span></span><strong>${bar.chord}</strong><small>${bar.function}</small><span class="tension-bar" title="Tension ${Math.round(bar.tension * 100)}% (target ${Math.round(bar.targetTension * 100)}%)"><span class="tension-fill" style="width:${Math.round(bar.tension * 100)}%"></span><span class="tension-target" style="left:${Math.round(bar.targetTension * 100)}%"></span></span></button>`
     ).join('');
     if (focused !== undefined) chords.querySelector<HTMLElement>(`[data-bar="${focused}"]`)?.focus();
+    this.syncPerformance();
     this.setText('reason', `${GENRE_PROFILES[phrase.genre].label} idiom; ${ALGORITHM_LABELS[this.scoreValue.options.algorithm].toLowerCase()} proposes melodies, and the one closest to the emotion’s tension curve is kept.`);
   }
   private drawFrame = (): void => {
     this.frame = undefined;
     if (!this.ready || !this.playing) return;
     const beat = this.session.beat;
+    const phrase = this.scoreValue.phrases[0];
+    const totalBeats = phrase?.length ?? 32;
+    const displayBeats = Math.max(32, totalBeats);
+    const barCount = phrase?.bars.length ?? 8;
     const playhead = this.view.getElementById('playhead');
     if (playhead) {
       playhead.style.display = 'block';
-      const x = String(37 + Math.min(32, beat) / 32 * 923);
+      const x = String(37 + Math.min(displayBeats, beat) / displayBeats * 923);
       playhead.setAttribute('x1', x); playhead.setAttribute('x2', x);
     }
     const progress = this.view.getElementById('phrase-progress-fill');
-    if (progress) progress.style.width = `${clamp(beat / 32 * 100, 0, 100).toFixed(1)}%`;
-    const currentBar = clamp(Math.floor(beat / 4), 0, 7);
+    if (progress) progress.style.width = `${clamp(beat / totalBeats * 100, 0, 100).toFixed(1)}%`;
+    const currentBar = clamp(Math.floor(beat / 4), 0, Math.max(0, barCount - 1));
     if (currentBar !== this.lastBarDrawn) {
       this.lastBarDrawn = currentBar;
-      this.setText('bar-pill', `Bar ${currentBar + 1} / 8`);
+      this.setText('bar-pill', `Bar ${currentBar + 1} / ${barCount}`);
       this.view.querySelectorAll<HTMLElement>('[data-bar]').forEach(el => {
         const current = Number(el.dataset.bar) === currentBar;
         el.classList.toggle('current', current); el.toggleAttribute('aria-current', current);
       });
+      this.syncPerformance();
       this.updateAppliedMessage();
     }
     this.frame = requestAnimationFrame(this.drawFrame);
@@ -532,6 +682,15 @@ export class AudioBusComposer extends HTMLElement {
           <span class="hint" id="input-label">Play along: the composer follows your key.</span>
         </div></details>
       </section></div>
+      <section class="performance" aria-label="Performance">
+        <div class="perf-head">
+          <div class="perf-title"><span class="perf-kicker">Performance</span><span class="perf-target" id="perf-target">Next bar · Bar 1</span></div>
+          <div class="perf-meta"><span class="perf-status" id="perf-status" role="status">Choose a change for the next bar</span><button class="perf-clear" id="perf-clear" hidden>Cancel</button></div>
+        </div>
+        <div class="perf-grid" id="perf-cues" role="group" aria-label="Next bar changes">${PERFORMANCE_CUES.map((cue, i) =>
+          `<button class="cue" data-cue="${cue}" aria-pressed="false"><span class="cue-top"><span class="cue-name">${CUE_LABELS[cue]}</span><kbd class="cue-key">${i + 1}</kbd></span><small class="cue-hint" data-cue-hint="${cue}"></small></button>`
+        ).join('')}</div>
+      </section>
       <section class="score-section" aria-label="Phrase"><div class="score-meta" id="score-meta"></div><div class="roll-scroll" id="roll"></div><div class="chords" id="chords" role="toolbar" aria-label="Bars: choose one to play from it"></div><div class="legend">${PARTS.map(p => `<span style="--swatch:${COLOURS[p]}">${titleCase(p)}</span>`).join('')}</div></section>
       <div class="footer"><p class="reason" id="reason"></p><div class="buttons"><button id="midi">Export MIDI</button><button id="json" title="The displayed plan as JSON">Save score</button><button id="recording" title="Phrase snapshots and every MIDI message sent">Save performance log</button></div></div>
       <div class="colophon"><span>Seeded, symbolic music in 4/4 · v${GENERATOR_VERSION}</span><span id="output-label">Browser audition</span></div>

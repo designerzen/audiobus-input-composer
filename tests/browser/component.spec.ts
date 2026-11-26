@@ -207,3 +207,117 @@ test('bars can be chosen by click or keyboard to play from them', async ({ page 
   await expect(composer.locator('#bar-pill')).toHaveText('Bar 1 / 8');
   await composer.getByRole('button', { name: 'Stop', exact: true }).click();
 });
+
+test('performance panel offers six next-bar options with dynamic hints and arms/cancels cleanly', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  const cues = composer.locator('#perf-cues .cue');
+  await expect(cues).toHaveCount(6);
+  await expect(composer.locator('[data-cue-hint="key-change"]')).toHaveText('C → D');
+
+  await composer.getByLabel('Genre').selectOption('house');
+  await expect(composer.locator('[data-cue-hint="bridge"]')).toHaveText('→ Break');
+  await expect(composer.locator('[data-cue-hint="drop"]')).toHaveText('Full band peak');
+
+  await composer.getByLabel('Genre').selectOption('rock');
+  await expect(composer.locator('[data-cue-hint="bridge"]')).toHaveText('Contrast shift');
+  await expect(composer.locator('[data-cue-hint="drop"]')).toHaveText('→ Last chorus');
+
+  const keyChange = composer.locator('[data-cue="key-change"]');
+  await keyChange.click();
+  await expect(keyChange).toHaveAttribute('aria-pressed', 'true');
+  await expect(composer.locator('#perf-status')).toContainText('Key change armed');
+  await expect(composer.locator('#perf-clear')).toBeVisible();
+  await expect(composer.locator('#live-label')).toHaveText('Ready to compose');
+  await expect(composer.locator('#score-meta')).toContainText('Key change');
+
+  // Second click toggles off, Cancel and Escape also clear armed cues, and keys 1-6 arm cues.
+  await keyChange.click();
+  await expect(keyChange).toHaveAttribute('aria-pressed', 'false');
+  await expect(composer.locator('#perf-clear')).toBeHidden();
+
+  await composer.locator('[data-cue="crescendo"]').focus();
+  await page.keyboard.press('2');
+  await expect(composer.locator('[data-cue="breakdown"]')).toHaveAttribute('aria-pressed', 'true');
+  await composer.locator('#perf-clear').click();
+  await expect(composer.locator('[data-cue="breakdown"]')).toHaveAttribute('aria-pressed', 'false');
+
+  await page.keyboard.press('6');
+  await expect(composer.locator('[data-cue="resolve"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(composer.locator('.chord')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(composer.locator('[data-cue="resolve"]')).toHaveAttribute('aria-pressed', 'false');
+  await expect(composer.locator('.chord')).toHaveCount(8);
+  expect(errors).toEqual([]);
+});
+
+test('performance panel steers the track on the next bar in real time', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  await page.evaluate(() => {
+    const el = document.querySelector('audiobus-composer') as any;
+    (window as any).perfNotes = [];
+    (window as any).cueEvents = [];
+    el.hostClock = true;
+    el.setOutput({ label: 'Perf sink', send: (bytes: number[]) => (window as any).perfNotes.push([...bytes]) });
+    el.addEventListener('composer-cue', (e: CustomEvent) => (window as any).cueEvents.push(e.detail));
+    el.configure({ genre: 'rock', root: 0, energy: 0.35, tempo: 120 });
+    return el.start();
+  });
+
+  await composer.locator('[data-cue="bridge"]').click();
+  await expect(composer.locator('#perf-status')).toContainText('Bridge armed for bar 2');
+  await page.evaluate(() => {
+    const el = document.querySelector('audiobus-composer') as any;
+    el.advance(3.6);
+    el.advance(0.5);
+  });
+  await expect(composer.locator('#score-meta')).toContainText('Bridge');
+
+  await composer.locator('[data-cue="key-change"]').click();
+  await page.evaluate(() => {
+    const el = document.querySelector('audiobus-composer') as any;
+    el.advance(3.5);
+    el.advance(0.5);
+  });
+  await expect(composer.locator('[name="root"]')).toHaveValue('2');
+  await expect(composer.locator('[data-cue-hint="key-change"]')).toHaveText('D → E');
+  await expect(composer.locator('#applied')).toContainText('Applied:');
+
+  await composer.locator('[data-cue="crescendo"]').click();
+  await page.evaluate(() => (document.querySelector('audiobus-composer') as any).advance(3.6));
+  await expect(composer.locator('#perf-status')).toContainText('Active: Crescendo');
+  const energyAfter = await composer.locator('[name="energy"]').inputValue();
+  expect(Number(energyAfter)).toBeGreaterThanOrEqual(0.65);
+
+  await page.evaluate(() => (document.querySelector('audiobus-composer') as any).finish());
+  await composer.locator('[data-cue="resolve"]').click();
+  await page.evaluate(() => {
+    const el = document.querySelector('audiobus-composer') as any;
+    el.advance(0.1);
+    el.advance(4.5);
+  });
+  await expect(composer.locator('#live-label')).toHaveText('Ready to compose');
+
+  const check = await page.evaluate(() => {
+    const active = new Set();
+    for (const [s, p] of (window as any).perfNotes as number[][]) {
+      const k = `${s & 15}:${p}`;
+      if ((s & 240) === 144) active.add(k);
+      else if ((s & 240) === 128) active.delete(k);
+    }
+    return {
+      active: active.size,
+      count: (window as any).perfNotes.length,
+      cueEvents: (window as any).cueEvents.length,
+      overflow: document.documentElement.scrollWidth <= innerWidth,
+    };
+  });
+  expect(check.count).toBeGreaterThan(0);
+  expect(check.active).toBe(0);
+  expect(check.cueEvents).toBeGreaterThanOrEqual(4);
+  expect(check.overflow).toBe(true);
+  expect(errors).toEqual([]);
+});

@@ -1,4 +1,4 @@
-import { ALGORITHMS, FAMILIES, GENRES, MODES, PARTS, type ComposerOptions, type EmotionFamily, type NoteEvent, type Phrase, type ResolvedMode, type Score } from './types.js';
+import { ALGORITHMS, FAMILIES, GENRES, MODES, PARTS, type ComposerOptions, type EmotionFamily, type NoteEvent, type PerformanceCue, type Phrase, type ResolvedMode, type Score } from './types.js';
 import { clamp, degreePitch, EMOTIONS, mod, NOTE_NAMES, random, resolveMode, SCALES, transformMotif, voiceLead, type EmotionProfile, type MotifTransform } from './theory.js';
 import { elaborate, material, type ElaborationOp, type Material } from './engines.js';
 import { GENRE_PROFILES, type GenreProfile, type SectionRole } from './genres.js';
@@ -115,6 +115,12 @@ export interface PhraseContext {
   final?: boolean;
   /** Key of the phrase that follows. When it differs, the last bar turns to its dominant. */
   next?: PhraseKey;
+  /** Real-time performance cue applied to this phrase (or starting at cueFromBar). */
+  cue?: PerformanceCue;
+  /** 0-based bar index where an in-phrase cue starts (default 0). */
+  cueFromBar?: number;
+  /** Energy before a crescendo lifted options.energy, so the swell ramps smoothly from it. */
+  cueStartEnergy?: number;
 }
 export interface PhraseKey { root: number; mode: ResolvedMode }
 
@@ -154,13 +160,17 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
   const section = genre.form[index % genre.form.length];
   const cycleStart = index - (index % genre.form.length);
   const final = !!context.final;
+  const cue = context.cue;
+  const fromBar = clamp(Math.floor(context.cueFromBar ?? 0), 0, 7);
+  const lastBar = cue === 'resolve' ? fromBar : 7;
+  const phraseLength = (lastBar + 1) * 4;
   const { root, mode } = phraseKey(options, index);
   const energy = clamp(options.energy + (section.energy ?? 0), 0, 1);
   const sectionParts = section.parts ? options.parts.filter(p => section.parts!.includes(p)) : options.parts;
-  const parts = sectionParts.length ? sectionParts : options.parts;
+  const parts = cue === 'drop' ? options.parts : (sectionParts.length ? sectionParts : options.parts);
   const swing = clamp(options.swing + genre.swing8, 0, .45);
   const grid: Grid = { slots: genre.grid, swing16: clamp(options.swing / 2 + genre.swing16, 0, .2) };
-  const overhang = final ? 0 : genre.overhang ?? 0;
+  const overhang = final || cue === 'resolve' ? 0 : genre.overhang ?? 0;
   const roleIndex = ROLES.indexOf(section.role);
 
   const themeRng = random(`${options.seed}:theme`);
@@ -172,13 +182,15 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
   const { steps } = plan;
   let { cadence } = plan;
   const next = context.next;
-  const modulating = !final && !!next && (next.root !== root || next.mode !== mode);
+  const modulating = !final && cue !== 'resolve' && !!next && (next.root !== root || next.mode !== mode);
   // A key or mode change is prepared by the new key's dominant instead of arriving unannounced.
   if (modulating) { steps[7] = pivotDominant(next, root, mode); cadence = 'modulating'; }
+  else if (cue === 'resolve') { cadence = 'authentic'; }
 
   const phrase: Phrase = {
-    index, start, length: 32, section: section.name, genre: options.genre, root, options, mode,
-    cadence, closed: CLOSED_CADENCES.includes(cadence), bars: [], events: [],
+    index, start, length: phraseLength, section: section.name, genre: options.genre, root, options, mode,
+    cadence, closed: cue === 'resolve' || CLOSED_CADENCES.includes(cadence), bars: [], events: [],
+    ...(cue ? { cue } : {}),
   };
   if (options.programs) phrase.setup = [[192, genre.programs.melody], [193, genre.programs.bass], [194, genre.programs.harmony]];
 
@@ -188,9 +200,11 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
   let serial = 0;
   const feel = genre.feel, feelRng = random(`${options.seed}:feel:${index}`);
   let held: NoteEvent[] = [], heldKey = '';
+  let currentParts = parts;
+  let currentVelScale = 1;
 
   const add: Add = (part, pitch, onset, duration, velocity, reason, degree) => {
-    if (!parts.includes(part)) return undefined;
+    if (!currentParts.includes(part)) return undefined;
     // Pitched parts lean on strong beats; drums carry their own accents in the pattern.
     const accent = part === 'percussion' ? 1 : 1 - feel.accent * .035 * metricLevel(onset - start);
     // Triangular spread, so most notes stay close to the part's push.
@@ -199,7 +213,8 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
     const event: NoteEvent = {
       id: `p${index}:${part}:${serial++}`, part, pitch: Math.round(clamp(pitch, 0, 127)),
       channel: { melody: 1, bass: 2, harmony: 3, percussion: 10 }[part], start: onset,
-      duration: Math.max(.01, Math.min(duration, start + 32 + overhang - onset)), velocity: clamp(velocity * accent, .05, 1),
+      duration: Math.max(.01, Math.min(duration, start + phraseLength + overhang - onset)),
+      velocity: clamp(currentVelScale === 1 ? velocity * accent : velocity * accent * currentVelScale, .05, 1),
       reason, degree, motifId: `${options.seed}:theme`,
     };
     const timing = Math.round(clamp(push + spread, -.05, .08) * 1e4) / 1e4;
@@ -208,37 +223,69 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
     return event;
   };
 
-  for (let bar = 0; bar < 8; bar++) {
+  for (let bar = 0; bar <= lastBar; bar++) {
+    let barEnergy = energy;
+    currentParts = parts;
+    currentVelScale = 1;
+    let tensionDelta = 0;
+    if (cue === 'crescendo' && bar >= fromBar) {
+      const span = lastBar - fromBar + 1;
+      const progress = (bar - fromBar + 1) / span;
+      const startE = clamp((context.cueStartEnergy ?? Math.max(.15, options.energy - .3)) + (section.energy ?? 0), 0, 1);
+      const endE = clamp(Math.max(startE + .3, energy, .8), 0, 1);
+      barEnergy = clamp(startE + (endE - startE) * progress, 0, 1);
+      currentVelScale = .84 + .34 * progress;
+      tensionDelta = .18 * progress;
+    } else if (cue === 'breakdown' && bar >= fromBar) {
+      const stripped = parts.filter(p => p !== 'percussion');
+      const reduced = stripped.length ? stripped : parts;
+      currentParts = !genre.drums && reduced.length > 2 ? reduced.filter(p => p !== 'bass') : reduced;
+      barEnergy = clamp(Math.min(energy - .35, .22), .08, .35);
+      currentVelScale = .78;
+      tensionDelta = -.16;
+    } else if (cue === 'drop') {
+      barEnergy = clamp(Math.max(energy, .78), 0, 1);
+      currentVelScale = bar === 0 ? 1.12 : 1.06;
+    } else if (cue === 'key-change') {
+      currentVelScale = bar === 0 ? 1.08 : 1.04;
+    }
+    if ((cue === 'crescendo' || cue === 'breakdown') && fromBar > 0 && bar === fromBar) {
+      held = [];
+      heldKey = '';
+    }
+
     const beat = start + bar * 4;
-    const step = steps[bar];
-    const cadential = bar === 7 && cadence !== 'open';
+    const resolving = cue === 'resolve' && bar === lastBar;
+    const step = resolving ? { degree: 0, melody: 0 } : steps[bar];
+    const cadential = resolving || (bar === lastBar && cadence !== 'open');
     const ext = extensionFor(genre, options.intensity, step, bar, cadential);
     const chord = realiseChord(step, root, mode, ext);
     const next = realiseChord(steps[bar + 1] ?? { degree: 0 }, root, mode, 0);
     const voicing = voiceLead(chord.pitches, previousVoicing);
     previousVoicing = voicing;
-    const target = targetTension(options.emotion, options.intensity, energy, bar);
+    const baseTarget = targetTension(options.emotion, options.intensity, barEnergy, bar);
+    const target = tensionDelta ? clamp(baseTarget + tensionDelta, 0, 1) : baseTarget;
     const harmonic = harmonicTension(step, ext, cadential);
 
-    if (genre.bass === 'pop') addBassLine(add, chord, next, beat, bar, cadential, energy, swing, profile.groove);
-    else patternBass(add, byEnergy(genre.bass, energy), chord, next, beat, grid, energy, cadential);
+    if (genre.bass === 'pop') addBassLine(add, chord, next, beat, bar, cadential, barEnergy, swing, profile.groove);
+    else patternBass(add, byEnergy(genre.bass, barEnergy), chord, next, beat, grid, barEnergy, cadential);
 
-    if (genre.comp === 'pop') addAccompaniment(add, voicing, beat, cadential, energy, swing, profile.groove);
+    if (genre.comp === 'pop') addAccompaniment(add, voicing, beat, cadential, barEnergy, swing, profile.groove);
     else if (genre.hold && !cadential && bar > 0 && stepKey(step) === heldKey && held.length) {
-      for (const e of held) e.duration = Math.min(e.duration + 4 + (bar === 7 ? overhang : 0), start + 32 + overhang - e.start);
+      for (const e of held) e.duration = Math.min(e.duration + 4 + (bar === lastBar ? overhang : 0), start + phraseLength + overhang - e.start);
     } else {
       const notes = compVoicing(genre.voicing, voicing, chord);
-      held = patternComp(add, byEnergy(genre.comp, energy), notes, beat, grid, energy, cadential, bar === 7 ? overhang : 0);
+      held = patternComp(add, byEnergy(genre.comp, barEnergy), notes, beat, grid, barEnergy, cadential, bar === lastBar ? overhang : 0);
     }
     heldKey = stepKey(step);
 
     // Melody: several seeded proposals; keep the one whose tension best follows the target curve.
     let melodyTension = 0, hasMelody = false;
-    if (parts.includes('melody') && (cadential || !genre.melody.rest?.includes(bar))) {
+    if (currentParts.includes('melody') && (cadential || !genre.melody.rest?.includes(bar))) {
       const materialIndex = section.role === 'return' ? cycleStart : index;
       let best: { notes: MelodyNote[]; last: number; score: number; tension: number } | undefined;
       for (let k = 0; k < (cadential ? 1 : 4); k++) {
-        const proposalEnergy = clamp(energy * genre.melody.density + (k === 1 ? .2 : k === 2 ? -.2 : 0), 0, 1);
+        const proposalEnergy = clamp(barEnergy * genre.melody.density + (k === 1 ? .2 : k === 2 ? -.2 : 0), 0, 1);
         let proposal = material({ ...options, energy: proposalEnergy }, materialIndex, bar, motif, { chordDegree: step.degree, sectionIndex: roleIndex, mode, variant: k === 3 ? 1 : 0 });
         // A return restates the opening bars of each half literally, so the theme is recognised, and varies the rest.
         if (section.role === 'return' && index !== cycleStart && bar % 4 >= 2) {
@@ -246,7 +293,7 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
           proposal = elaborate(proposal, ELABORATIONS[options.emotion][rng() < .65 ? 0 : 1], step.degree, rng);
         }
         const realised = realiseMelody(proposal, {
-          step, chord, root, mode, profile, genre, intensity: options.intensity, energy, previous: previousPitch,
+          step, chord, root, mode, profile, genre, intensity: options.intensity, energy: barEnergy, previous: previousPitch,
           center, cadential, swing, velocityKey: `${options.seed}:vel:${index}:${bar}`, arc: phraseArcVelocity(bar),
         });
         const tension = melodicTension(realised.notes.map(n => n.pitch), chord.pcs, center);
@@ -258,16 +305,30 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
       previousPitch = best.last; melodyTension = best.tension; hasMelody = true;
     }
 
-    if (genre.drums === 'pop') addPercussion(add, beat, bar, cadential, energy, swing, profile.groove);
-    else if (genre.drums && energy >= .12) {
-      const kit = byEnergy(genre.drums, energy);
-      const fill = (energy > .45 || modulating) && (bar === 7 || (bar === 3 && energy > .7));
-      patternDrums(add, kit, beat, grid, energy, fill, bar === 0 && energy > .6 && section.role !== 'contrast');
+    if (genre.drums === 'pop') {
+      addPercussion(add, beat, bar, cadential, barEnergy, swing, profile.groove);
+      if ((cue === 'drop' || cue === 'key-change') && bar === 0 && barEnergy >= .18) {
+        add('percussion', 49, beat, .3, clamp(.55 + barEnergy * .25, .05, 1), 'Crash marks the performance transition');
+      }
+      if (cue === 'crescendo' && bar >= fromBar && !cadential && (bar === lastBar || bar === lastBar - 1) && barEnergy >= .18) {
+        for (const slot of [5, 6, 7]) {
+          if (bar === 3 && slot === 7 && barEnergy > .42) continue;
+          const onset = beat + slot / 2 + (slot % 2 ? swing : 0);
+          const maxDur = slot % 2 ? Math.max(.02, .48 - swing) : .44;
+          add('percussion', 38, onset, Math.min(.12, maxDur), clamp(.42 + barEnergy * .3 + (slot - 5) * .08, .05, 1), 'Crescendo snare buildup');
+        }
+      }
+    } else if (genre.drums && barEnergy >= .12) {
+      const kit = byEnergy(genre.drums, barEnergy);
+      const crescendoFill = cue === 'crescendo' && bar >= fromBar && (bar === lastBar || bar === lastBar - 1);
+      const fill = (barEnergy > .45 || modulating || crescendoFill) && (bar === lastBar || crescendoFill || (bar === 3 && barEnergy > .7));
+      const crash = bar === 0 && ((barEnergy > .6 && section.role !== 'contrast') || cue === 'drop' || cue === 'key-change');
+      patternDrums(add, kit, beat, grid, barEnergy, fill, crash);
     }
 
     phrase.bars.push({
       index: index * 8 + bar, start: beat, chord: chord.symbol, roman: chord.roman, degree: step.degree, pitches: voicing,
-      function: bar === 7 ? (cadence === 'modulating' ? 'modulation' : cadence === 'half' ? 'half cadence' : cadence === 'deceptive' ? 'deceptive cadence' : cadence === 'open' ? 'continuation' : 'cadence')
+      function: bar === lastBar ? (cue === 'resolve' ? 'cadence' : cadence === 'modulating' ? 'modulation' : cadence === 'half' ? 'half cadence' : cadence === 'deceptive' ? 'deceptive cadence' : cadence === 'open' ? 'continuation' : 'cadence')
         : bar === 3 && mod(step.degree, 7) === 4 && !step.shift ? 'half cadence' : bar < 4 ? 'presentation' : 'continuation',
       tension: combineTension(harmonic, melodyTension, hasMelody), targetTension: target,
     });
