@@ -1,10 +1,11 @@
-import { ALGORITHMS, FAMILIES, GENRES, MODES, PARTS, type ComposerOptions, type EmotionFamily, type NoteEvent, type PerformanceCue, type Phrase, type ResolvedMode, type Score } from './types.js';
+import { ALGORITHMS, ALGORITHM_COMBINERS, FAMILIES, GENRES, GENRE_MIX_MODES, GROOVES, MODES, PARTS, TUNINGS, type ComposerOptions, type EmotionFamily, type NoteEvent, type PerformanceCue, type Phrase, type ResolvedMode, type Score } from './types.js';
 import { clamp, degreePitch, EMOTIONS, mod, NOTE_NAMES, random, resolveMode, SCALES, transformMotif, voiceLead, type EmotionProfile, type MotifTransform } from './theory.js';
-import { elaborate, material, type ElaborationOp, type Material } from './engines.js';
-import { GENRE_PROFILES, type GenreProfile, type SectionRole } from './genres.js';
+import { combineMaterial, elaborate, material, type ElaborationOp, type Material } from './engines.js';
+import { applyGrooveFeel, GENRE_PROFILES, mixGenres, type GenreProfile, type SectionRole } from './genres.js';
 import { CLOSED_CADENCES, planHarmony, realiseChord, type ChordStep, type RealisedChord } from './harmony.js';
-import { addAccompaniment, addBassLine, addPercussion, byEnergy, compVoicing, fold, nearestWithPc, patternBass, patternComp, patternDrums, type Add, type Grid } from './parts.js';
+import { addAccompaniment, addBassLine, addPercussion, byEnergy, compVoicing, fold, nearestWithPc, patternBass, patternComp, patternDrums, shapeDrumKit, shapePattern, type Add, type Grid } from './parts.js';
 import { combineTension, harmonicTension, melodicTension, targetTension } from './tension.js';
+import { tuningCentsOffset } from './tuning.js';
 import { GENERATOR_VERSION } from './version.js';
 
 export const DEFAULT_OPTIONS: Readonly<ComposerOptions> = Object.freeze({
@@ -26,6 +27,29 @@ export function normalizeOptions(input: Partial<ComposerOptions> = {}): Composer
   if (o.motif === undefined) delete o.motif;
   else if (!Array.isArray(o.motif) || o.motif.length < 2 || o.motif.length > 8 || o.motif.some(d => !Number.isInteger(d) || d < 0 || d > 6)) throw new RangeError('motif must be 2–8 scale degrees, 0–6');
   else o.motif = [...o.motif];
+  if (o.tuning === undefined || o.tuning === 'equal') delete o.tuning;
+  else if (!TUNINGS.includes(o.tuning)) throw new RangeError('Unknown tuning');
+  if (o.groove === undefined || o.groove === 'auto') delete o.groove;
+  else if (!GROOVES.includes(o.groove)) throw new RangeError('Unknown groove preset');
+  if (o.dynamics === undefined || o.dynamics === 0) delete o.dynamics;
+  else if (!Number.isFinite(o.dynamics) || o.dynamics < 0 || o.dynamics > 1) throw new RangeError('dynamics must be 0–1');
+  if (o.genreMix === undefined) delete o.genreMix;
+  else {
+    const amount = o.genreMix.amount ?? .5;
+    const mode = o.genreMix.mode ?? 'blend';
+    if (!GENRES.includes(o.genreMix.genre) || !GENRE_MIX_MODES.includes(mode) || !Number.isFinite(amount) || amount < 0 || amount > 1) {
+      throw new RangeError('Invalid genreMix');
+    }
+    o.genreMix = { genre: o.genreMix.genre, amount, mode };
+  }
+  if (o.algorithmMix === undefined) delete o.algorithmMix;
+  else {
+    const weight = o.algorithmMix.weight ?? .5;
+    if (!ALGORITHMS.includes(o.algorithmMix.secondary) || !ALGORITHM_COMBINERS.includes(o.algorithmMix.mode) || !Number.isFinite(weight) || weight < 0 || weight > 1) {
+      throw new RangeError('Invalid algorithmMix');
+    }
+    o.algorithmMix = { secondary: o.algorithmMix.secondary, mode: o.algorithmMix.mode, weight };
+  }
   return o;
 }
 
@@ -124,9 +148,15 @@ export interface PhraseContext {
 }
 export interface PhraseKey { root: number; mode: ResolvedMode }
 
+function effectiveGenre(options: ComposerOptions, index: number): GenreProfile {
+  const base = GENRE_PROFILES[options.genre];
+  const mixed = options.genreMix ? mixGenres(base, options.genreMix, index) : base;
+  return applyGrooveFeel(mixed, options.groove);
+}
+
 /** Tonic and mode of a phrase, including its section's key lift. */
 export function phraseKey(input: Partial<ComposerOptions>, index: number): PhraseKey {
-  const options = normalizeOptions(input), genre = GENRE_PROFILES[options.genre];
+  const options = normalizeOptions(input), genre = effectiveGenre(options, index);
   const section = genre.form[index % genre.form.length];
   const mode = options.mode === 'auto' ? resolveMode(EMOTIONS[options.emotion].mode, options.intensity, genre.modes) : options.mode;
   return { root: mod(options.root + (section.lift ?? 0), 12), mode };
@@ -155,8 +185,11 @@ function metricLevel(position: number): number {
 export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, start = index * 32, context: PhraseContext = {}): Phrase {
   const options = normalizeOptions(input);
   if (!Number.isInteger(index) || index < 0 || !Number.isFinite(start) || start < 0) throw new RangeError('Invalid phrase position');
-  const genre = GENRE_PROFILES[options.genre];
+  const genre = effectiveGenre(options, index);
   const profile = EMOTIONS[options.emotion];
+  const dynamics = options.dynamics ?? 0;
+  const groove = options.groove;
+  const tuning = options.tuning;
   const section = genre.form[index % genre.form.length];
   const cycleStart = index - (index % genre.form.length);
   const final = !!context.final;
@@ -219,6 +252,10 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
     };
     const timing = Math.round(clamp(push + spread, -.05, .08) * 1e4) / 1e4;
     if (timing) event.timing = timing;
+    if (tuning && part !== 'percussion') {
+      const detune = tuningCentsOffset(event.pitch, tuning, root);
+      if (detune) event.detune = detune;
+    }
     phrase.events.push(event);
     return event;
   };
@@ -267,15 +304,22 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
     const target = tensionDelta ? clamp(baseTarget + tensionDelta, 0, 1) : baseTarget;
     const harmonic = harmonicTension(step, ext, cadential);
 
+    const patternSeed = `${options.seed}:dyn:${index}`;
     if (genre.bass === 'pop') addBassLine(add, chord, next, beat, bar, cadential, barEnergy, swing, profile.groove);
-    else patternBass(add, byEnergy(genre.bass, barEnergy), chord, next, beat, grid, barEnergy, cadential);
+    else {
+      const rawBass = byEnergy(genre.bass, barEnergy);
+      const shapedBass = groove || dynamics > 0 ? shapePattern(rawBass, groove, dynamics, bar, patternSeed, 'bass') : rawBass;
+      patternBass(add, shapedBass, chord, next, beat, grid, barEnergy, cadential);
+    }
 
     if (genre.comp === 'pop') addAccompaniment(add, voicing, beat, cadential, barEnergy, swing, profile.groove);
     else if (genre.hold && !cadential && bar > 0 && stepKey(step) === heldKey && held.length) {
       for (const e of held) e.duration = Math.min(e.duration + 4 + (bar === lastBar ? overhang : 0), start + phraseLength + overhang - e.start);
     } else {
       const notes = compVoicing(genre.voicing, voicing, chord);
-      held = patternComp(add, byEnergy(genre.comp, barEnergy), notes, beat, grid, barEnergy, cadential, bar === lastBar ? overhang : 0);
+      const rawComp = byEnergy(genre.comp, barEnergy);
+      const shapedComp = groove || dynamics > 0 ? shapePattern(rawComp, groove, dynamics, bar, patternSeed, 'comp') : rawComp;
+      held = patternComp(add, shapedComp, notes, beat, grid, barEnergy, cadential, bar === lastBar ? overhang : 0);
     }
     heldKey = stepKey(step);
 
@@ -286,15 +330,20 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
       let best: { notes: MelodyNote[]; last: number; score: number; tension: number } | undefined;
       for (let k = 0; k < (cadential ? 1 : 4); k++) {
         const proposalEnergy = clamp(barEnergy * genre.melody.density + (k === 1 ? .2 : k === 2 ? -.2 : 0), 0, 1);
-        let proposal = material({ ...options, energy: proposalEnergy }, materialIndex, bar, motif, { chordDegree: step.degree, sectionIndex: roleIndex, mode, variant: k === 3 ? 1 : 0 });
+        const propOpts = { ...options, energy: proposalEnergy };
+        const propCtx = { chordDegree: step.degree, sectionIndex: roleIndex, mode, variant: k === 3 ? 1 : 0 };
+        let proposal = options.algorithmMix
+          ? combineMaterial(propOpts, materialIndex, bar, motif, options.algorithmMix, propCtx)
+          : material(propOpts, materialIndex, bar, motif, propCtx);
         // A return restates the opening bars of each half literally, so the theme is recognised, and varies the rest.
         if (section.role === 'return' && index !== cycleStart && bar % 4 >= 2) {
           const rng = random(`${options.seed}:elaborate:${index}:${bar}`);
           proposal = elaborate(proposal, ELABORATIONS[options.emotion][rng() < .65 ? 0 : 1], step.degree, rng);
         }
+        const arc = phraseArcVelocity(bar) * (1 + dynamics * .85);
         const realised = realiseMelody(proposal, {
           step, chord, root, mode, profile, genre, intensity: options.intensity, energy: barEnergy, previous: previousPitch,
-          center, cadential, swing, velocityKey: `${options.seed}:vel:${index}:${bar}`, arc: phraseArcVelocity(bar),
+          center, cadential, swing, velocityKey: `${options.seed}:vel:${index}:${bar}`, arc,
         });
         const tension = melodicTension(realised.notes.map(n => n.pitch), chord.pcs, center);
         const score = Math.abs(combineTension(harmonic, tension, realised.notes.length > 0) - target) + k * .015;
@@ -319,9 +368,10 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
         }
       }
     } else if (genre.drums && barEnergy >= .12) {
-      const kit = byEnergy(genre.drums, barEnergy);
+      const rawKit = byEnergy(genre.drums, barEnergy);
+      const kit = groove || dynamics > 0 ? shapeDrumKit(rawKit, groove, dynamics, bar, patternSeed, grid.slots) : rawKit;
       const crescendoFill = cue === 'crescendo' && bar >= fromBar && (bar === lastBar || bar === lastBar - 1);
-      const fill = (barEnergy > .45 || modulating || crescendoFill) && (bar === lastBar || crescendoFill || (bar === 3 && barEnergy > .7));
+      const fill = (barEnergy > .45 || modulating || crescendoFill || (dynamics > .5 && bar === 3)) && (bar === lastBar || crescendoFill || (bar === 3 && (barEnergy > .7 || dynamics > .5)));
       const crash = bar === 0 && ((barEnergy > .6 && section.role !== 'contrast') || cue === 'drop' || cue === 'key-change');
       patternDrums(add, kit, beat, grid, barEnergy, fill, crash);
     }

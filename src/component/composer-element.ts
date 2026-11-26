@@ -1,5 +1,6 @@
-import { ALGORITHMS, FAMILIES, GENRES, PARTS, PERFORMANCE_CUES, type ComposerOptions, type DispatchRecord, type EmotionFamily, type Genre, type MidiOutputAdapter, type MidiSink, type Mode, type PerformanceCue, type Phrase, type Score } from '../types.js';
+import { ALGORITHMS, ALGORITHM_COMBINERS, FAMILIES, GENRES, GENRE_MIX_MODES, GROOVES, PARTS, PERFORMANCE_CUES, TUNINGS, type Algorithm, type AlgorithmCombiner, type ComposerOptions, type DispatchRecord, type EmotionFamily, type Genre, type GenreMixMode, type GroovePreset, type MidiOutputAdapter, type MidiSink, type Mode, type PerformanceCue, type Phrase, type Score, type Tuning } from '../types.js';
 import { GENRE_PROFILES, genreTempo } from '../genres.js';
+import { TUNING_PROFILES } from '../tuning.js';
 import { GENERATOR_VERSION } from '../version.js';
 import { compose, composePhrase, DEFAULT_OPTIONS, normalizeOptions, phraseKey, pitchName } from '../composer.js';
 import { EMOTIONS, NOTE_NAMES, clamp, mod } from '../theory.js';
@@ -23,6 +24,19 @@ const MODE_LABELS: Record<Mode, string> = {
   auto: 'Follow emotion', major: 'Major', minor: 'Minor', dorian: 'Dorian', mixolydian: 'Mixolydian',
   lydian: 'Lydian', phrygian: 'Phrygian', 'harmonic-minor': 'Harmonic minor', locrian: 'Locrian',
 };
+const GROOVE_LABELS: Record<GroovePreset, string> = {
+  auto: 'Style default', straight: 'Straight', swung: 'Swung', pocket: 'Laid-back pocket',
+  shuffled: '16th shuffle', halftime: 'Half-time', doubletime: 'Double-time',
+  syncopated: 'Syncopated', polyrhythm: 'Polyrhythm', human: 'Humanised',
+};
+const GENRE_MIX_LABELS: Record<GenreMixMode, string> = {
+  blend: 'Continuous blend', 'rhythm-swap': 'Swap rhythm & bass', 'harmony-swap': 'Swap harmony & comp',
+  alternate: 'Alternate phrases', split: 'Split band',
+};
+const ALGO_COMBINE_LABELS: Record<AlgorithmCombiner, string> = {
+  pipeline: 'Pipeline (A → B)', split: 'Pitch × Rhythm', alternate: 'Call & response',
+  blend: 'Weighted blend', counterpoint: 'Interlocking counterpoint',
+};
 const COLOURS = { melody: '#d0e9aa', bass: '#88abd9', harmony: '#b9a0d9', percussion: '#e8b780' };
 // Keep presentation CSS in the shadow stylesheet rather than an SVG raw-text element.
 // This also lets HTML fragment parsers mount the entire panel consistently.
@@ -31,7 +45,7 @@ const STAR_ART = PLUTCHIK_ART.replace(/<style>[\s\S]*?<\/style>/, '');
 
 /** A dependency-free, Shadow DOM instrument. Import the component entry to register it. */
 export class AudioBusComposer extends HTMLElement {
-  static observedAttributes = ['seed', 'emotion', 'energy', 'intensity', 'tempo', 'root', 'mode', 'algorithm', 'genre', 'swing', 'host-clock'];
+  static observedAttributes = ['seed', 'emotion', 'energy', 'intensity', 'tempo', 'root', 'mode', 'algorithm', 'genre', 'swing', 'tuning', 'groove', 'dynamics', 'host-clock'];
   private view = this.attachShadow({ mode: 'open' });
   private state = normalizeOptions();
   private scoreValue = compose();
@@ -116,13 +130,14 @@ export class AudioBusComposer extends HTMLElement {
     if (oldValue === value) return;
     if (name === 'host-clock') { this.hostClock = value !== null; return; }
     const fallback = DEFAULT_OPTIONS[name as keyof ComposerOptions];
-    const next = value === null ? fallback : ['energy', 'intensity', 'tempo', 'root', 'swing'].includes(name) ? Number(value) : value;
+    const next = value === null ? fallback : ['energy', 'intensity', 'tempo', 'root', 'swing', 'dynamics'].includes(name) ? Number(value) : value;
     try { this.configure({ [name]: next }); } catch (e) { this.reportError(e); }
   }
 
   configure(patch: Partial<ComposerOptions>): void {
     this.state = normalizeOptions({ ...this.state, ...patch });
     this.session.update(this.state);
+    this.synth.setTuning(this.state.tuning ?? 'equal', this.state.root);
     if (!this.playing) this.renderPreview();
     this.syncControls();
     this.emit(COMPOSER_CONTROL_CHANGE, { selected: this.options, applied: this.playing ? this.session.applied : null, pending: this.playing });
@@ -241,6 +256,7 @@ export class AudioBusComposer extends HTMLElement {
   private onPhrase(phrase: Phrase): void {
     const prev = this.state;
     this.state = this.session.options;
+    this.synth.setTuning(phrase.options.tuning ?? 'equal', phrase.root);
     this.scoreValue = { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, options: phrase.options, length: phrase.length, phrases: [phrase], events: phrase.events };
     this.events = new Map(phrase.events.map(e => [e.id, e]));
     this.lastBarDrawn = -1;
@@ -258,6 +274,7 @@ export class AudioBusComposer extends HTMLElement {
   private onRevise(phrase: Phrase): void {
     const prev = this.state;
     this.state = this.session.options;
+    this.synth.setTuning(phrase.options.tuning ?? 'equal', phrase.root);
     this.scoreValue = { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, options: phrase.options, length: phrase.length, phrases: [phrase], events: phrase.events };
     this.renderScore(); this.syncControls(); this.updateAppliedMessage();
     if (prev.root !== this.state.root || prev.energy !== this.state.energy) {
@@ -330,6 +347,25 @@ export class AudioBusComposer extends HTMLElement {
       const el = this.view.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${key}"]`);
       if (el) el.value = String(this.state[key]);
     }
+    const tuningEl = this.view.querySelector<HTMLSelectElement>('[name="tuning"]');
+    if (tuningEl) tuningEl.value = this.state.tuning ?? 'equal';
+    const grooveEl = this.view.querySelector<HTMLSelectElement>('[name="groove"]');
+    if (grooveEl) grooveEl.value = this.state.groove ?? 'auto';
+    const dynEl = this.view.querySelector<HTMLInputElement>('[name="dynamics"]');
+    if (dynEl) dynEl.value = String(this.state.dynamics ?? 0);
+    this.setText('dynamics-value', `${Math.round((this.state.dynamics ?? 0) * 100)}%`);
+    const mixGenreEl = this.view.querySelector<HTMLSelectElement>('[name="mix-genre"]');
+    if (mixGenreEl) mixGenreEl.value = this.state.genreMix?.genre ?? 'none';
+    const mixModeEl = this.view.querySelector<HTMLSelectElement>('[name="mix-mode"]');
+    if (mixModeEl) { mixModeEl.value = this.state.genreMix?.mode ?? 'blend'; mixModeEl.disabled = !this.state.genreMix; }
+    const mixAmountEl = this.view.querySelector<HTMLInputElement>('[name="mix-amount"]');
+    const mixAmt = this.state.genreMix?.amount ?? .5;
+    if (mixAmountEl) { mixAmountEl.value = String(mixAmt); mixAmountEl.disabled = !this.state.genreMix; }
+    this.setText('mix-amount-value', `${Math.round(mixAmt * 100)}%`);
+    const mixAlgoEl = this.view.querySelector<HTMLSelectElement>('[name="mix-algorithm"]');
+    if (mixAlgoEl) mixAlgoEl.value = this.state.algorithmMix?.secondary ?? 'none';
+    const mixAlgoModeEl = this.view.querySelector<HTMLSelectElement>('[name="mix-algo-mode"]');
+    if (mixAlgoModeEl) { mixAlgoModeEl.value = this.state.algorithmMix?.mode ?? 'pipeline'; mixAlgoModeEl.disabled = !this.state.algorithmMix; }
     this.view.querySelectorAll<HTMLInputElement>('input[data-part]').forEach(el => { el.checked = this.state.parts.includes(el.dataset.part as typeof PARTS[number]); });
     const programs = this.view.querySelector<HTMLInputElement>('[name="programs"]');
     if (programs) programs.checked = this.state.programs;
@@ -410,7 +446,10 @@ export class AudioBusComposer extends HTMLElement {
   }
   private onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (['energy', 'intensity', 'swing'].includes(input.name)) this.configure({ [input.name]: Number(input.value) });
+    if (['energy', 'intensity', 'swing', 'dynamics'].includes(input.name)) this.configure({ [input.name]: Number(input.value) });
+    if (input.name === 'mix-amount' && this.state.genreMix) {
+      this.configure({ genreMix: { ...this.state.genreMix, amount: Number(input.value) } });
+    }
     if (input.name === 'volume') { this.synth.volume = Number(input.value); return; }
     // The slider applies on release; show the value while dragging.
     if (input.name === 'tempo') this.setText('tempo-value', `${input.value} BPM`);
@@ -442,9 +481,19 @@ export class AudioBusComposer extends HTMLElement {
           if (!port || port.state !== 'connected') throw new Error('MIDI output is disconnected');
           this.midiPort = port; this.setOutput(webMidiOutput(port));
         }
-      } else if (['seed', 'emotion', 'tempo', 'root', 'mode', 'algorithm'].includes(input.name)) {
+      } else if (['seed', 'emotion', 'tempo', 'root', 'mode', 'algorithm', 'tuning', 'groove'].includes(input.name)) {
         if (this.hosted && input.name === 'tempo') { this.syncControls(); return; }
         this.configure({ [input.name]: ['tempo', 'root'].includes(input.name) ? Number(input.value) : input.value });
+      } else if (input.name === 'mix-genre') {
+        if (input.value === 'none') this.configure({ genreMix: undefined });
+        else this.configure({ genreMix: { genre: input.value as Genre, mode: this.state.genreMix?.mode ?? 'blend', amount: this.state.genreMix?.amount ?? .5 } });
+      } else if (input.name === 'mix-mode' && this.state.genreMix) {
+        this.configure({ genreMix: { ...this.state.genreMix, mode: input.value as GenreMixMode } });
+      } else if (input.name === 'mix-algorithm') {
+        if (input.value === 'none') this.configure({ algorithmMix: undefined });
+        else this.configure({ algorithmMix: { secondary: input.value as Algorithm, mode: this.state.algorithmMix?.mode ?? 'pipeline', weight: this.state.algorithmMix?.weight ?? .5 } });
+      } else if (input.name === 'mix-algo-mode' && this.state.algorithmMix) {
+        this.configure({ algorithmMix: { ...this.state.algorithmMix, mode: input.value as AlgorithmCombiner } });
       }
     } catch (e) {
       this.syncControls();
@@ -587,7 +636,10 @@ export class AudioBusComposer extends HTMLElement {
     const barCount = phrase.bars.length;
     const displayBeats = Math.max(32, phrase.length);
     const cueSuffix = phrase.cue ? ` · ${CUE_LABELS[phrase.cue]}` : '';
-    this.setText('score-meta', `${titleCase(phrase.section)} · ${GENRE_PROFILES[phrase.genre].label} · ${this.scoreValue.options.tempo} BPM · ${MODE_LABELS[phrase.mode]} · ${phrase.cadence} cadence${cueSuffix} · ${this.scoreValue.events.length} events${this.scoreValue.length > 32 ? ' · showing first 8 bars' : ''}`);
+    const genreLabel = phrase.options.genreMix ? `${GENRE_PROFILES[phrase.genre].label} × ${GENRE_PROFILES[phrase.options.genreMix.genre].label}` : GENRE_PROFILES[phrase.genre].label;
+    const tuningSuffix = phrase.options.tuning ? ` · ${TUNING_PROFILES[phrase.options.tuning].label}` : '';
+    const grooveSuffix = phrase.options.groove ? ` · ${GROOVE_LABELS[phrase.options.groove]}` : '';
+    this.setText('score-meta', `${titleCase(phrase.section)} · ${genreLabel} · ${this.scoreValue.options.tempo} BPM · ${MODE_LABELS[phrase.mode]}${tuningSuffix}${grooveSuffix} · ${phrase.cadence} cadence${cueSuffix} · ${this.scoreValue.events.length} events${this.scoreValue.length > 32 ? ' · showing first 8 bars' : ''}`);
     const width = 960, left = 37, inner = width - left, height = 200;
     const visible = phrase.events.filter(e => e.start < phrase.start + displayBeats);
     const melodic = visible.filter(e => e.part !== 'percussion');
@@ -620,7 +672,10 @@ export class AudioBusComposer extends HTMLElement {
     ).join('');
     if (focused !== undefined) chords.querySelector<HTMLElement>(`[data-bar="${focused}"]`)?.focus();
     this.syncPerformance();
-    this.setText('reason', `${GENRE_PROFILES[phrase.genre].label} idiom; ${ALGORITHM_LABELS[this.scoreValue.options.algorithm].toLowerCase()} proposes melodies, and the one closest to the emotion’s tension curve is kept.`);
+    const algoDesc = this.scoreValue.options.algorithmMix
+      ? `${ALGORITHM_LABELS[this.scoreValue.options.algorithm].toLowerCase()} + ${ALGORITHM_LABELS[this.scoreValue.options.algorithmMix.secondary].toLowerCase()} (${ALGO_COMBINE_LABELS[this.scoreValue.options.algorithmMix.mode].toLowerCase()})`
+      : ALGORITHM_LABELS[this.scoreValue.options.algorithm].toLowerCase();
+    this.setText('reason', `${genreLabel} idiom; ${algoDesc} proposes melodies, and the one closest to the emotion’s tension curve is kept.`);
   }
   private drawFrame = (): void => {
     this.frame = undefined;
@@ -672,7 +727,12 @@ export class AudioBusComposer extends HTMLElement {
         <label class="field"><span class="range-label"><span>Tempo</span><output id="tempo-value">104 BPM</output></span><div class="seed-row"><input name="tempo" type="range" min="30" max="240" step="1" aria-label="Tempo / BPM"><button id="tap" title="Tap the beat to set the tempo (or press T)">Tap</button></div></label>
         <details class="more"><summary>Theme &amp; harmony</summary><div class="more-body">
           <div class="control-grid"><label class="field">Tonic<select name="root">${Array.from({ length: 12 }, (_, i) => `<option value="${i}">${pitchName(i + 60).slice(0, -1)}</option>`).join('')}</select></label><label class="field">Harmonic colour<select name="mode">${options(Object.keys(MODE_LABELS), m => MODE_LABELS[m as Mode])}</select></label></div>
+          <div class="control-grid"><label class="field">Tuning<select name="tuning">${options(TUNINGS, t => TUNING_PROFILES[t as Tuning].label)}</select></label><label class="field">Groove<select name="groove">${options(GROOVES, g => GROOVE_LABELS[g as GroovePreset])}</select></label></div>
+          <label class="field"><span class="range-label"><span>Dynamics &amp; variation</span><output id="dynamics-value">0%</output></span><input name="dynamics" type="range" min="0" max="1" step="0.01" value="0" aria-label="Dynamics and variation"></label>
+          <div class="control-grid"><label class="field">Blend style<select name="mix-genre"><option value="none">None</option>${options(GENRES, g => GENRE_PROFILES[g as Genre].label)}</select></label><label class="field">Blend mode<select name="mix-mode" disabled>${options(GENRE_MIX_MODES, m => GENRE_MIX_LABELS[m as GenreMixMode])}</select></label></div>
+          <label class="field"><span class="range-label"><span>Blend balance</span><output id="mix-amount-value">50%</output></span><input name="mix-amount" type="range" min="0" max="1" step="0.01" value="0.5" disabled aria-label="Blend balance"></label>
           <div class="control-grid"><label class="field">Theme seed<div class="seed-row"><input name="seed" type="text" maxlength="128" spellcheck="false"><button id="reroll" aria-label="Create a new theme" title="Create a new theme">↻</button></div></label><label class="field">Generator<select name="algorithm">${options(ALGORITHMS, a => ALGORITHM_LABELS[a as typeof ALGORITHMS[number]])}</select></label></div>
+          <div class="control-grid"><label class="field">Combine algorithm<select name="mix-algorithm"><option value="none">None</option>${options(ALGORITHMS, a => ALGORITHM_LABELS[a as typeof ALGORITHMS[number]])}</select></label><label class="field">Combine mode<select name="mix-algo-mode" disabled>${options(ALGORITHM_COMBINERS, m => ALGO_COMBINE_LABELS[m as AlgorithmCombiner])}</select></label></div>
           <div class="field"><span class="field-label" id="parts-label">Ensemble</span><div class="parts" role="group" aria-labelledby="parts-label">${PARTS.map(p => `<label class="part"><input type="checkbox" data-part="${p}" checked>${titleCase(p)}</label>`).join('')}</div></div>
         </div></details>
         <details class="more"><summary>Sound &amp; MIDI</summary><div class="more-body">

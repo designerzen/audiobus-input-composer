@@ -1,4 +1,4 @@
-import type { ComposerOptions, ResolvedMode } from './types.js';
+import type { Algorithm, AlgorithmMix, ComposerOptions, ResolvedMode } from './types.js';
 import { clamp, EMOTIONS, euclidean, lifeStep, mod, nearestDegree, random, trainMarkov, weighted } from './theory.js';
 
 export interface Material { degrees: number[]; gates: number[]; explanation: string }
@@ -144,6 +144,120 @@ export function material(options: ComposerOptions, phrase: number, bar: number, 
   gates[0] = 1;
   return { degrees, gates, explanation };
 }
+
+/**
+ * Combines two independent generative algorithms into a single unified musical proposal:
+ * - `pipeline`: primary generates an intermediate melodic sequence, which feeds into secondary as its motif.
+ * - `split`: primary supplies pitch degrees while secondary supplies rhythmic gates.
+ * - `alternate`: call-and-response across bars (even bars primary, odd bars secondary) or halves of a bar.
+ * - `blend`: slot-by-slot weighted weave of both algorithms' pitches and rhythms.
+ * - `counterpoint`: interlocks primary and secondary so secondary fills primary's rests and strong/weak dialogue.
+ */
+export function combineMaterial(
+  options: ComposerOptions,
+  phrase: number,
+  bar: number,
+  motif: readonly number[],
+  mix: AlgorithmMix,
+  context: MaterialContext = {},
+): Material {
+  const weight = clamp(mix.weight ?? .5, 0, 1);
+  const secondaryOptions: ComposerOptions = { ...options, algorithm: mix.secondary };
+  const primary = material(options, phrase, bar, motif, context);
+
+  if (mix.secondary === options.algorithm && mix.mode !== 'pipeline') return primary;
+
+  switch (mix.mode) {
+    case 'pipeline': {
+      // Feed primary's generated degrees as the motif into the secondary algorithm.
+      const seedSlice = primary.degrees.slice(0, clamp(Math.max(4, motif.length), 4, 8));
+      const secondary = material(secondaryOptions, phrase, bar, seedSlice, context);
+      const rng = random(`${options.seed}:pipe:${phrase}:${bar}:${context.variant ?? 0}`);
+      const gates = primary.gates.map((g, i) => {
+        if (i === 0) return 1;
+        if (g && secondary.gates[i]) return 1;
+        if (!g && !secondary.gates[i]) return 0;
+        return rng() < (secondary.gates[i] ? weight : 1 - weight) ? 1 : 0;
+      });
+      return {
+        degrees: secondary.degrees,
+        gates,
+        explanation: `Pipeline (${options.algorithm} → ${mix.secondary}): ${secondary.explanation}`,
+      };
+    }
+    case 'split': {
+      const secondary = material(secondaryOptions, phrase, bar, motif, context);
+      const gates = [...secondary.gates];
+      gates[0] = 1;
+      return {
+        degrees: primary.degrees,
+        gates,
+        explanation: `Pitch×Rhythm (${options.algorithm} pitch, ${mix.secondary} rhythm)`,
+      };
+    }
+    case 'alternate': {
+      const secondary = material(secondaryOptions, phrase, bar, motif, context);
+      // Weight shifts whether alternation happens per bar or half-bar.
+      if (weight >= .65) {
+        const degrees = primary.degrees.map((d, i) => i < 4 ? d : secondary.degrees[i]);
+        const gates = primary.gates.map((g, i) => i < 4 ? g : secondary.gates[i]);
+        gates[0] = 1;
+        return {
+          degrees,
+          gates,
+          explanation: `Call & response (${options.algorithm} call → ${mix.secondary} answer)`,
+        };
+      }
+      const useSecondary = bar % 2 === 1;
+      const chosen = useSecondary ? secondary : primary;
+      return {
+        degrees: chosen.degrees,
+        gates: chosen.gates,
+        explanation: `Alternating (${useSecondary ? mix.secondary : options.algorithm} bar ${bar + 1}): ${chosen.explanation}`,
+      };
+    }
+    case 'counterpoint': {
+      const secondary = material(secondaryOptions, phrase, bar, motif, context);
+      const degrees = primary.degrees.map((d, i) => {
+        if (primary.gates[i]) return d;
+        if (secondary.gates[i]) return secondary.degrees[i];
+        return i % 2 === 1 ? secondary.degrees[i] : d;
+      });
+      const gates = primary.gates.map((g, i) => {
+        if (i === 0) return 1;
+        if (g) return 1;
+        // Fill primary rests with secondary answers proportional to weight.
+        return secondary.gates[i] && (i % 2 === 1 || weight > .55) ? 1 : 0;
+      });
+      return {
+        degrees,
+        gates,
+        explanation: `Interlocking counterpoint (${options.algorithm} answered by ${mix.secondary})`,
+      };
+    }
+    default: {
+      // 'blend': weighted slot-by-slot consensus between primary and secondary.
+      const secondary = material(secondaryOptions, phrase, bar, motif, context);
+      const rng = random(`${options.seed}:blend:${phrase}:${bar}:${context.variant ?? 0}`);
+      const degrees = primary.degrees.map((d, i) => {
+        const pickSecondary = i % 2 === 0 ? rng() < weight * .75 : rng() < clamp(weight * 1.15, 0, 1);
+        return pickSecondary ? secondary.degrees[i] : d;
+      });
+      const gates = primary.gates.map((g, i) => {
+        if (i === 0) return 1;
+        if (g === secondary.gates[i]) return g;
+        return rng() < (secondary.gates[i] ? weight : 1 - weight) ? 1 : 0;
+      });
+      return {
+        degrees,
+        gates,
+        explanation: `Blended (${options.algorithm} + ${mix.secondary})`,
+      };
+    }
+  }
+}
+
+export type AlgorithmCandidate = { material: Material; source: Algorithm | 'hybrid' };
 
 export type ElaborationOp = 'passing' | 'neighbour' | 'anticipation' | 'arpeggiate';
 

@@ -7,8 +7,35 @@ export type Mode = typeof MODES[number];
 export type ResolvedMode = Exclude<Mode, 'auto'>;
 export const PARTS = ['melody', 'bass', 'harmony', 'percussion'] as const;
 export type Part = typeof PARTS[number];
-export const GENRES = ['pop', 'house', 'techno', 'boom-bap', 'trap', 'jazz', 'bossa', 'reggae', 'rock', 'galant', 'minimal', 'ambient', 'chiptune'] as const;
+export const GENRES = [
+  'pop', 'house', 'techno', 'boom-bap', 'trap', 'jazz', 'bossa', 'reggae', 'rock', 'galant', 'minimal', 'ambient', 'chiptune',
+  'dnb', 'funk', 'afrobeat', 'waltz', 'synthwave', 'latin', 'garage',
+] as const;
 export type Genre = typeof GENRES[number];
+export const GROOVES = ['auto', 'straight', 'swung', 'pocket', 'shuffled', 'halftime', 'doubletime', 'syncopated', 'polyrhythm', 'human'] as const;
+export type GroovePreset = typeof GROOVES[number];
+export const TUNINGS = [
+  'equal', 'just', 'pythagorean', 'meantone', 'werckmeister', 'kirnberger', 'baroque', 'verdi',
+  'maqam-rast', 'maqam-bayati', 'pelog', 'slendro', 'bohlen-pierce',
+] as const;
+export type Tuning = typeof TUNINGS[number];
+export const GENRE_MIX_MODES = ['blend', 'rhythm-swap', 'harmony-swap', 'alternate', 'split'] as const;
+export type GenreMixMode = typeof GENRE_MIX_MODES[number];
+export interface GenreMix {
+  genre: Genre;
+  /** 0–1 influence of the secondary genre (default 0.5). */
+  amount?: number;
+  /** How the two genres combine (default 'blend'). */
+  mode?: GenreMixMode;
+}
+export const ALGORITHM_COMBINERS = ['pipeline', 'split', 'alternate', 'blend', 'counterpoint'] as const;
+export type AlgorithmCombiner = typeof ALGORITHM_COMBINERS[number];
+export interface AlgorithmMix {
+  secondary: Algorithm;
+  mode: AlgorithmCombiner;
+  /** 0–1 weight toward the secondary algorithm (default 0.5). */
+  weight?: number;
+}
 export const PERFORMANCE_CUES = ['crescendo', 'breakdown', 'bridge', 'drop', 'key-change', 'resolve'] as const;
 export type PerformanceCue = typeof PERFORMANCE_CUES[number];
 /**
@@ -35,6 +62,16 @@ export interface ComposerOptions {
   programs: boolean;
   /** Theme as 2–8 scale degrees (0–6), such as one captured from a player; otherwise the seed invents one. */
   motif?: number[];
+  /** Microtonal or historical tuning system (defaults to 'equal' when omitted). */
+  tuning?: Tuning;
+  /** Rhythmic groove override (defaults to 'auto', following the genre). */
+  groove?: GroovePreset;
+  /** Bar-to-bar dynamic variation and rhythmic evolution, 0–1 (defaults to 0 when omitted). */
+  dynamics?: number;
+  /** Blend or cross-pollinate with a second genre. */
+  genreMix?: GenreMix;
+  /** Combine the primary melodic algorithm with a second algorithm. */
+  algorithmMix?: AlgorithmMix;
 }
 
 export interface NoteEvent {
@@ -47,6 +84,8 @@ export interface NoteEvent {
   velocity: number;
   /** Performance offset from the notated start, in beats; positive is late. The genre's feel. */
   timing?: number;
+  /** Microtonal detune offset from 12-TET A440 in cents, present when tuning is not 'equal'. */
+  detune?: number;
   degree?: number;
   reason: string;
   motifId: string;

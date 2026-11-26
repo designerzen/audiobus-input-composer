@@ -1,5 +1,5 @@
-import type { NoteEvent } from './types.js';
-import { clamp, euclidean, mod, type GrooveStyle } from './theory.js';
+import type { GroovePreset, NoteEvent } from './types.js';
+import { clamp, euclidean, mod, random, type GrooveStyle } from './theory.js';
 import type { DrumKit, GenreProfile } from './genres.js';
 import type { RealisedChord } from './harmony.js';
 
@@ -125,18 +125,88 @@ export const byEnergy = <T>(levels: { low: T; mid: T; high: T }, energy: number)
 export interface Grid { slots: number; swing16: number }
 const slotOnset = (slot: number, grid: Grid) => slot * 4 / grid.slots + (grid.slots === 16 && slot % 2 ? grid.swing16 : 0);
 
+/** Transform a one-bar pattern string for groove presets (halftime, doubletime, syncopated) and dynamic variation. */
+export function shapePattern(pattern: string, groove: GroovePreset | undefined, dynamics: number, bar: number, seedKey: string, kind: 'bass' | 'comp' | 'drum'): string {
+  const len = pattern.length;
+  let chars = [...pattern];
+
+  if (groove === 'halftime') {
+    // Stretch the first half of the bar across the full bar for a spacious half-time pulse.
+    const half = Math.floor(len / 2);
+    const out = Array<string>(len).fill('.');
+    for (let i = 0; i < half; i++) {
+      out[i * 2] = chars[i];
+      if (i * 2 + 1 < len && (chars[i] === '-' || (kind !== 'drum' && chars[i] !== '.'))) out[i * 2 + 1] = '-';
+    }
+    chars = out;
+  } else if (groove === 'doubletime') {
+    // Tile the first half twice so the groove drives at double speed.
+    const half = Math.floor(len / 2);
+    chars = chars.map((_, i) => chars[(i % half) * 2] ?? chars[i % half]);
+  } else if (groove === 'syncopated') {
+    // Shift interior off-beat hits earlier by one slot while anchoring the downbeat.
+    const out = [...chars];
+    for (let i = 2; i < len - 1; i++) {
+      if (chars[i] !== '.' && chars[i] !== '-' && i % 4 === 0 && out[i - 1] === '.') {
+        out[i - 1] = chars[i];
+        out[i] = kind === 'drum' ? '.' : '-';
+      }
+    }
+    chars = out;
+  }
+
+  if (dynamics > 0 && bar > 0) {
+    const rng = random(`${seedKey}:${kind}:${bar}`);
+    // Subtle bar-to-bar evolution: pickup notes, ghost hits, or breathing rests.
+    for (let i = 1; i < len; i++) {
+      if (kind === 'drum') {
+        if (chars[i] === '.' && i % 2 === 1 && rng() < dynamics * .18) chars[i] = 'g';
+        else if (chars[i] === 'g' && rng() < dynamics * .25) chars[i] = '.';
+        else if (chars[i] === 'x' && i % 4 !== 0 && rng() < dynamics * .15) chars[i] = 'o';
+      } else if (kind === 'bass') {
+        if (i === len - 1 && chars[i] === '.' && bar % 2 === 1 && rng() < dynamics * .65) chars[i] = 'A';
+        else if (chars[i] === 'R' && i > 0 && i % 4 === 2 && rng() < dynamics * .3) chars[i] = rng() < .5 ? '5' : '8';
+      } else if (kind === 'comp') {
+        if (chars[i] === '.' && i % 4 === 3 && rng() < dynamics * .22) chars[i] = 'S';
+      }
+    }
+  }
+
+  return chars.join('');
+}
+
+/** Shapes an entire drum kit for groove presets (including polyrhythm cross-pulses) and dynamic bar variation. */
+export function shapeDrumKit(kit: DrumKit, groove: GroovePreset | undefined, dynamics: number, bar: number, seedKey: string, slots: number): DrumKit {
+  if ((!groove || groove === 'auto' || groove === 'straight' || groove === 'swung' || groove === 'pocket' || groove === 'shuffled' || groove === 'human') && dynamics <= 0) {
+    return kit;
+  }
+  const shaped: Record<number, string> = {};
+  for (const [key, pattern] of Object.entries(kit)) {
+    shaped[Number(key)] = shapePattern(pattern, groove, dynamics, bar, `${seedKey}:d${key}`, 'drum');
+  }
+  if (groove === 'polyrhythm') {
+    // Layer a 3-against-4 (or 5-against-16) Euclidean cross-rhythm on rim click / shaker.
+    const hits = slots === 12 ? 5 : 6;
+    const poly = euclidean(hits, slots, bar % slots);
+    const polyStr = poly.map((h, i) => (h ? (i % 3 === 0 ? 'x' : 'o') : '.')).join('');
+    shaped[37] = polyStr;
+  }
+  return shaped;
+}
+
 /** Attack segments of a one-bar pattern: each runs until the next attack or the end of the bar. */
 function segments(pattern: string, grid: Grid): { slot: number; symbol: string; onset: number; length: number }[] {
+  const localGrid: Grid = { slots: pattern.length, swing16: grid.swing16 };
   const out = [];
   for (let slot = 0; slot < pattern.length; slot++) {
     const symbol = pattern[slot];
     if (symbol === '.' || symbol === '-') continue;
     let end = slot + 1;
     while (end < pattern.length && pattern[end] === '-') end++;
-    const onset = slotOnset(slot, grid);
-    let until = end >= pattern.length ? 4 : slotOnset(end, grid);
+    const onset = slotOnset(slot, localGrid);
+    let until = end >= pattern.length ? 4 : slotOnset(end, localGrid);
     // A rest after a sustained run ends the note there.
-    if (end < pattern.length && pattern[end] === '.') until = slotOnset(end, grid);
+    if (end < pattern.length && pattern[end] === '.') until = slotOnset(end, localGrid);
     out.push({ slot, symbol, onset, length: until - onset });
   }
   return out;
@@ -217,13 +287,15 @@ export function patternComp(add: Add, pattern: string, notes: readonly number[],
 }
 
 export function patternDrums(add: Add, kit: DrumKit, beat: number, grid: Grid, energy: number, fill: boolean, crash: boolean): void {
-  const base = .32 + energy * .35, slot = 4 / grid.slots;
+  const base = .32 + energy * .35;
   for (const [key, pattern] of Object.entries(kit)) {
     const note = Number(key);
+    const localGrid: Grid = { slots: pattern.length, swing16: grid.swing16 };
+    const slot = 4 / localGrid.slots;
     for (let i = 0; i < pattern.length; i++) {
       const weight = DRUM_WEIGHTS[pattern[i]];
       if (!weight) continue;
-      const onset = beat + slotOnset(i, grid);
+      const onset = beat + slotOnset(i, localGrid);
       if (pattern[i] === 'r') {
         for (let hit = 0; hit < 3; hit++) add('percussion', note, onset + hit * slot / 3, slot / 3 * .7, base * weight * (.8 + hit * .1), 'Hi-hat roll subdivides the pulse');
       } else {
@@ -231,6 +303,7 @@ export function patternDrums(add: Add, kit: DrumKit, beat: number, grid: Grid, e
       }
     }
   }
+  const slot = 4 / grid.slots;
   if (fill) {
     const snare = kit[38] ?? '', from = grid.slots - grid.slots / 4;
     for (let i = from; i < grid.slots; i++) {

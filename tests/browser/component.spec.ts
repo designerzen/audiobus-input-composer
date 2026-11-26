@@ -114,7 +114,7 @@ test('every genre renders a phrase, suggests its tempo and names its idiom', asy
   await page.goto('/');
   const composer = page.locator('audiobus-composer');
   const genres = await composer.getByLabel('Genre').locator('option').evaluateAll(options => options.map(o => [(o as HTMLOptionElement).value, o.textContent]));
-  expect(genres.length).toBe(13);
+  expect(genres.length).toBe(20);
   for (const [value, label] of genres) {
     await composer.getByLabel('Genre').selectOption(value!);
     await expect(composer.locator('#score-meta')).toContainText(label!);
@@ -160,7 +160,7 @@ test('the gallery shows every emotion for a genre and a summary of all genres', 
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/gallery.html');
   await expect(page.locator('.card')).toHaveCount(8);
-  await expect(page.locator('#summary tbody tr')).toHaveCount(13);
+  await expect(page.locator('#summary tbody tr')).toHaveCount(20);
   await page.getByLabel('Genre').selectOption('reggae');
   await expect(page.locator('.card').first()).toContainText('Repeated bars');
   await page.locator('button[data-play]').first().click();
@@ -319,5 +319,26 @@ test('performance panel steers the track on the next bar in real time', async ({
   expect(check.active).toBe(0);
   expect(check.cueEvents).toBeGreaterThanOrEqual(4);
   expect(check.overflow).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('tuning, groove, dynamics, genre mixing and algorithm combination work in the UI', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  await composer.getByText('Theme & harmony').click();
+  await composer.getByLabel('Tuning').selectOption('just');
+  await expect(composer.locator('#score-meta')).toContainText('Just Intonation');
+  await composer.getByLabel('Groove').selectOption('polyrhythm');
+  await expect(composer.locator('#score-meta')).toContainText('Polyrhythm');
+  await composer.getByLabel('Blend style').selectOption('dnb');
+  await expect(composer.locator('#score-meta')).toContainText('Pop × Drum & bass');
+  await expect(composer.getByLabel('Blend mode')).toBeEnabled();
+  await composer.getByLabel('Combine algorithm').selectOption('life');
+  await expect(composer.getByLabel('Combine mode')).toBeEnabled();
+  await expect(composer.locator('#reason')).toContainText('game of life');
+  await expect(page).toHaveURL(/tuning=just/);
+  await expect(page).toHaveURL(/mixGenre=dnb/);
+  await expect(page).toHaveURL(/mixAlgo=life/);
   expect(errors).toEqual([]);
 });

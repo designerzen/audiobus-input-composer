@@ -1,4 +1,5 @@
-import type { MidiOutputAdapter } from '../types.js';
+import type { MidiOutputAdapter, Tuning } from '../types.js';
+import { tuningFrequency } from '../tuning.js';
 
 interface ActiveVoice {
   sources: AudioScheduledSourceNode[];
@@ -16,6 +17,13 @@ export class PreviewSynth implements MidiOutputAdapter {
   private voices = new Map<string, ActiveVoice>();
   private noise?: AudioBuffer;
   private volumeValue = .35;
+  private tuningValue: Tuning = 'equal';
+  private rootValue = 0;
+
+  setTuning(tuning: Tuning = 'equal', root = 0): void {
+    this.tuningValue = tuning;
+    this.rootValue = root;
+  }
 
   async resume(): Promise<void> {
     if (!this.context || this.context.state === 'closed') {
@@ -79,7 +87,7 @@ export class PreviewSynth implements MidiOutputAdapter {
     }
 
     const time = ctx.currentTime;
-    const freq = 440 * 2 ** ((pitch - 69) / 12);
+    const freq = tuningFrequency(pitch, this.tuningValue, this.rootValue);
     const vel = velocity / 127;
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();

@@ -1,6 +1,7 @@
 import type { MidiOutputAdapter, MidiSink, Score } from './types.js';
 import { validateEvents } from './composer.js';
 import { clamp } from './theory.js';
+import { TUNING_PROFILES } from './tuning.js';
 
 /** No clock extension is assumed: call only when the local scheduler says a message is due. */
 export const audioBusOutput = (peer: MidiSink): MidiOutputAdapter => ({ label: 'AudioBus', send: bytes => peer.sendMidi(bytes) });
@@ -39,6 +40,9 @@ export function scoreToMidi(score: Score, { feel = true }: { feel?: boolean } = 
     { tick: 0, order: -2, data: [255, 81, 3, ...be(tempo, 3)] },
     { tick: 0, order: -1, data: [255, 88, 4, 4, 2, 24, 8] },
   );
+  if (score.options.tuning && score.options.tuning !== 'equal') {
+    entries.push({ tick: 0, order: -1, data: metaText(1, `Tuning: ${TUNING_PROFILES[score.options.tuning].label}`) });
+  }
   // Embed section and chord markers as standard MIDI meta events for DAWs.
   for (const phrase of score.phrases) {
     entries.push({ tick: Math.round(phrase.start * 480), order: -1, data: metaText(6, `${phrase.section} (${phrase.mode})`) });

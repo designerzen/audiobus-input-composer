@@ -30,11 +30,14 @@ export interface PerformanceRecord {
   truncated: boolean;
 }
 
-/** Controls that change texture but not harmony or form; they take effect at the next bar. */
-const BAR_LEVEL = ['energy', 'swing', 'parts'] as const;
+/** Controls that change texture, feel or tuning but not harmony or form; they take effect at the next bar. */
+const BAR_LEVEL = ['energy', 'swing', 'parts', 'groove', 'dynamics', 'tuning'] as const;
 const CUT_CUES = new Set<PerformanceCue>(['bridge', 'drop', 'key-change']);
-const sameBarLevel = (a: ComposerOptions, b: ComposerOptions) => a.energy === b.energy && a.swing === b.swing && a.parts.join() === b.parts.join();
-const samePhraseLevel = (a: ComposerOptions, b: ComposerOptions) => JSON.stringify({ ...a, energy: 0, swing: 0, parts: [] }) === JSON.stringify({ ...b, energy: 0, swing: 0, parts: [] });
+const sameBarLevel = (a: ComposerOptions, b: ComposerOptions) =>
+  a.energy === b.energy && a.swing === b.swing && a.parts.join() === b.parts.join() && a.groove === b.groove && a.dynamics === b.dynamics && a.tuning === b.tuning;
+const samePhraseLevel = (a: ComposerOptions, b: ComposerOptions) =>
+  JSON.stringify({ ...a, energy: 0, swing: 0, parts: [], groove: undefined, dynamics: undefined, tuning: undefined }) ===
+  JSON.stringify({ ...b, energy: 0, swing: 0, parts: [], groove: undefined, dynamics: undefined, tuning: undefined });
 
 /**
  * Continuous phrase generation. Energy, swing, ensemble and performance cues apply at the next bar;

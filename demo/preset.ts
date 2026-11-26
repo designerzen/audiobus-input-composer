@@ -11,6 +11,19 @@ export function presetToHash(options: ComposerOptions): string {
   if (options.parts.join() !== DEFAULT_OPTIONS.parts.join()) params.set('parts', options.parts.join(','));
   if (options.programs) params.set('programs', '1');
   if (options.motif) params.set('motif', options.motif.join(''));
+  if (options.tuning) params.set('tuning', options.tuning);
+  if (options.groove) params.set('groove', options.groove);
+  if (options.dynamics) params.set('dynamics', String(options.dynamics));
+  if (options.genreMix) {
+    params.set('mixGenre', options.genreMix.genre);
+    if (options.genreMix.mode && options.genreMix.mode !== 'blend') params.set('mixMode', options.genreMix.mode);
+    if (options.genreMix.amount !== undefined && options.genreMix.amount !== .5) params.set('mixAmount', String(options.genreMix.amount));
+  }
+  if (options.algorithmMix) {
+    params.set('mixAlgo', options.algorithmMix.secondary);
+    params.set('mixAlgoMode', options.algorithmMix.mode);
+    if (options.algorithmMix.weight !== undefined && options.algorithmMix.weight !== .5) params.set('mixAlgoWeight', String(options.algorithmMix.weight));
+  }
   const text = params.toString();
   return text ? `#${text}` : location.pathname + location.search;
 }
@@ -27,5 +40,27 @@ export function presetFromHash(hash: string): ComposerOptions | undefined {
   if (params.get('programs') === '1') patch.programs = true;
   const motif = params.get('motif');
   if (motif) patch.motif = [...motif].map(Number);
+  const tuning = params.get('tuning');
+  if (tuning) patch.tuning = tuning as ComposerOptions['tuning'];
+  const groove = params.get('groove');
+  if (groove) patch.groove = groove as ComposerOptions['groove'];
+  const dynamics = params.get('dynamics');
+  if (dynamics !== null) patch.dynamics = Number(dynamics);
+  const mixGenre = params.get('mixGenre');
+  if (mixGenre) {
+    patch.genreMix = {
+      genre: mixGenre as NonNullable<ComposerOptions['genreMix']>['genre'],
+      mode: (params.get('mixMode') ?? 'blend') as NonNullable<ComposerOptions['genreMix']>['mode'],
+      amount: params.get('mixAmount') !== null ? Number(params.get('mixAmount')) : .5,
+    };
+  }
+  const mixAlgo = params.get('mixAlgo');
+  if (mixAlgo) {
+    patch.algorithmMix = {
+      secondary: mixAlgo as NonNullable<ComposerOptions['algorithmMix']>['secondary'],
+      mode: (params.get('mixAlgoMode') ?? 'pipeline') as NonNullable<ComposerOptions['algorithmMix']>['mode'],
+      weight: params.get('mixAlgoWeight') !== null ? Number(params.get('mixAlgoWeight')) : .5,
+    };
+  }
   return normalizeOptions(patch);
 }
