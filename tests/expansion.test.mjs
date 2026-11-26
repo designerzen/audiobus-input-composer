@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ALGORITHMS, ALGORITHM_COMBINERS, GENRES, GENRE_MIX_MODES, GENRE_PROFILES, GROOVES, TUNINGS, TUNING_PROFILES,
-  ComposerSession, combineMaterial, compose, material, midiTuningSysex, mixGenres, normalizeOptions, scoreToMidi,
-  tuningCentsOffset, tuningFrequency,
+  ComposerSession, EmotionFollower, combineMaterial, compose, composePhrase, material, midiTuningSysex, mixGenres,
+  normalizeOptions, plutchikPath, scoreToMidi, tuningCentsOffset, tuningFrequency,
 } from '../dist/index.js';
 
 const mod = (n, d) => ((n % d) + d) % d;
@@ -188,4 +188,57 @@ test('validation rejects invalid tuning, groove, dynamics, genreMix and algorith
   assert.equal('tuning' in def, false);
   assert.equal('groove' in def, false);
   assert.equal('dynamics' in def, false);
+});
+
+test('EmotionFollower walks Plutchik wheel step-by-step and creates one bar per step', () => {
+  // Opposite emotions (joy -> sadness): 4 steps around the wheel.
+  const opp = plutchikPath({ emotion: 'joy', intensity: 2 / 3 }, { emotion: 'sadness', intensity: 2 / 3 });
+  assert.deepEqual(opp.map(s => s.emotion), ['trust', 'fear', 'surprise', 'sadness']);
+  assert.equal(opp.at(-1).arrival, true);
+
+  // Counter-clockwise shorter path (joy -> anger): passes through anticipation.
+  const ccw = plutchikPath({ emotion: 'joy', intensity: 2 / 3 }, { emotion: 'anger', intensity: 2 / 3 });
+  assert.deepEqual(ccw.map(s => s.emotion), ['anticipation', 'anger']);
+
+  // Radial intensity walk on the same petal (Serenity -> Ecstasy): passes through Joy.
+  const radial = plutchikPath({ emotion: 'joy', intensity: 1 / 3 }, { emotion: 'joy', intensity: 1 });
+  assert.deepEqual(radial.map(s => s.label), ['Joy', 'Ecstasy']);
+
+  // Composing a phrase with the follower's path assigns each step to its own bar.
+  const follower = new EmotionFollower({ emotion: 'joy', intensity: 2 / 3 });
+  follower.guideTo({ emotion: 'sadness', intensity: 2 / 3 });
+  const steps = follower.takeForBars(8);
+  const phrase = composePhrase({ emotion: 'sadness', intensity: 2 / 3, seed: 'plutchik' }, 1, 32, { emotionPath: steps });
+  assert.deepEqual(phrase.bars.slice(0, 4).map(b => b.emotion), ['trust', 'fear', 'surprise', 'sadness']);
+  assert.deepEqual(phrase.bars.slice(4).map(b => b.emotion), ['sadness', 'sadness', 'sadness', 'sadness']);
+  // Verify strong beats remain chord tones across the stepping-stone bars.
+  for (const e of phrase.events.filter(ev => ev.part === 'melody')) {
+    const offset = (e.start - phrase.start) % 4;
+    if (Math.abs(offset) > 1e-9 && Math.abs(offset - 2) > 1e-9) continue;
+    const bar = phrase.bars[Math.floor((e.start - phrase.start) / 4)];
+    assert(bar.pitches.some(p => mod(p, 12) === mod(e.pitch, 12)), `bar ${bar.index} chord tone`);
+  }
+
+  // Live session follows the Plutchik path across phrase boundaries without jump-scaring.
+  const phrases = [];
+  const session = new ComposerSession(
+    { emotion: 'joy', intensity: 2 / 3, tempo: 120, seed: 'live-follow' },
+    { send: () => {} },
+    { onPhrase: p => phrases.push(p) },
+    { clock: 'host' },
+  );
+  session.start();
+  session.update({ emotion: 'sadness', intensity: 2 / 3 });
+  assert.deepEqual(session.plannedEmotionPath.map(s => s.emotion), ['trust', 'fear', 'surprise', 'sadness']);
+  session.advance(32);
+  assert.equal(phrases.length, 2);
+  assert.deepEqual(phrases[1].bars.slice(0, 4).map(b => b.emotion), ['trust', 'fear', 'surprise', 'sadness']);
+  assert.equal(session.currentEmotion.emotion, 'trust', 'bar 1 sounds Trust');
+  session.advance(4);
+  assert.equal(session.currentEmotion.emotion, 'fear', 'bar 2 sounds Fear');
+  session.advance(4);
+  assert.equal(session.currentEmotion.emotion, 'surprise', 'bar 3 sounds Surprise');
+  session.advance(4);
+  assert.equal(session.currentEmotion.emotion, 'sadness', 'bar 4 arrives at Sadness');
+  session.stop();
 });

@@ -3,6 +3,7 @@ export * from './version.js';
 export * from './events.js';
 export * from './theory.js';
 export * from './tuning.js';
+export * from './emotion-follower.js';
 export * from './engines.js';
 export * from './genres.js';
 export * from './harmony.js';

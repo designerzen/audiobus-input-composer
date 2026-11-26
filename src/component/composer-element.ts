@@ -4,6 +4,7 @@ import { TUNING_PROFILES } from '../tuning.js';
 import { GENERATOR_VERSION } from '../version.js';
 import { compose, composePhrase, DEFAULT_OPTIONS, normalizeOptions, phraseKey, pitchName } from '../composer.js';
 import { EMOTIONS, NOTE_NAMES, clamp, mod } from '../theory.js';
+import { EmotionFollower, emotionLabel, intensityTier, type EmotionStep } from '../emotion-follower.js';
 import { audioBusOutput, scoreToMidi, webMidiOutput } from '../midi.js';
 import { ComposerSession, type PerformanceRecord } from '../session.js';
 import { MidiFollower } from '../input.js';
@@ -66,6 +67,8 @@ export class AudioBusComposer extends HTMLElement {
   private ready = false;
   private lastBarDrawn = -1;
   private taps: number[] = [];
+  private emotionFollower = new EmotionFollower({ emotion: this.state.emotion, intensity: this.state.intensity });
+  private previewPath: EmotionStep[] = [];
 
   get options(): ComposerOptions { return normalizeOptions(this.state); }
   set options(value: Partial<ComposerOptions>) { this.configure(value); }
@@ -135,10 +138,19 @@ export class AudioBusComposer extends HTMLElement {
   }
 
   configure(patch: Partial<ComposerOptions>): void {
+    const prevEmotion = this.state.emotion, prevIntensity = this.state.intensity;
     this.state = normalizeOptions({ ...this.state, ...patch });
     this.session.update(this.state);
     this.synth.setTuning(this.state.tuning ?? 'equal', this.state.root);
-    if (!this.playing) this.renderPreview();
+    const emotionChanged = this.state.emotion !== prevEmotion || Math.abs(this.state.intensity - prevIntensity) > 1e-6;
+    if (!this.playing) {
+      if (emotionChanged) {
+        this.emotionFollower.setCurrent({ emotion: prevEmotion, intensity: prevIntensity });
+        this.emotionFollower.guideTo({ emotion: this.state.emotion, intensity: this.state.intensity });
+        this.previewPath = this.emotionFollower.takeForBars(8);
+      }
+      this.renderPreview();
+    }
     this.syncControls();
     this.emit(COMPOSER_CONTROL_CHANGE, { selected: this.options, applied: this.playing ? this.session.applied : null, pending: this.playing });
   }
@@ -376,10 +388,22 @@ export class AudioBusComposer extends HTMLElement {
     this.setText('energy-value', `${Math.round(this.state.energy * 100)}`);
     this.setText('swing-value', `${Math.round(this.state.swing * 100)}%`);
     let tabAssigned = false;
+    const displayPath = this.playing
+      ? (this.session.plannedEmotionPath.length ? this.session.plannedEmotionPath : this.session.emotionPath)
+      : this.previewPath;
+    const pathKeys = new Set(displayPath.filter(s => !s.arrival).map(s => `${s.emotion}:${s.tier}`));
+    const sounding = this.playing ? this.session.currentEmotion : undefined;
+    const soundingTier = sounding ? intensityTier(sounding.intensity) : 0;
     this.view.querySelectorAll<SVGPathElement>('path[data-family]').forEach(path => {
-      const selected = path.dataset.family === this.state.emotion && Math.abs(Number(path.dataset.strength) - (level + 1) / 3) < .01;
+      const strength = Number(path.dataset.strength);
+      const tier = intensityTier(strength);
+      const selected = path.dataset.family === this.state.emotion && Math.abs(strength - (level + 1) / 3) < .01;
+      const inPath = pathKeys.has(`${path.dataset.family}:${tier}`);
+      const isSounding = !!sounding && path.dataset.family === sounding.emotion && tier === soundingTier && !selected;
       path.setAttribute('aria-pressed', String(selected));
       path.setAttribute('tabindex', selected && !tabAssigned ? '0' : '-1');
+      path.classList.toggle('path-step', inPath);
+      path.classList.toggle('sounding', isSounding);
       if (selected) tabAssigned = true;
     });
     this.syncPerformance();
@@ -605,7 +629,12 @@ export class AudioBusComposer extends HTMLElement {
   private renderPreview(): void {
     const queued = this.queuedCue;
     if (!queued) {
-      this.scoreValue = compose(this.state);
+      if (this.previewPath.length) {
+        const phrase = composePhrase(this.state, 0, 0, { final: true, emotionPath: this.previewPath });
+        this.scoreValue = { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, options: this.state, length: phrase.length, phrases: [phrase], events: phrase.events };
+      } else {
+        this.scoreValue = compose(this.state);
+      }
       this.renderScore();
       return;
     }
@@ -667,9 +696,12 @@ export class AudioBusComposer extends HTMLElement {
     const chords = this.view.getElementById('chords')!;
     const focused = (this.view.activeElement as HTMLElement | null)?.dataset.bar;
     const tabStop = clamp(Number(focused ?? (this.playing ? Math.max(0, this.lastBarDrawn) : 0)), 0, Math.max(0, barCount - 1));
-    chords.innerHTML = phrase.bars.map((bar, i) =>
-      `<button class="chord ${bar.function.endsWith('cadence') || bar.function === 'modulation' ? 'cadence' : ''}" data-bar="${i}" tabindex="${i === tabStop ? 0 : -1}" aria-label="Bar ${i + 1}: ${bar.chord}${bar.roman ? ` (${bar.roman})` : ''}, ${bar.function}. Play from here."><span class="chord-top"><span class="number">${String(i + 1).padStart(2, '0')}</span><span class="bar-cue"></span><span class="roman">${bar.roman ?? ''}</span></span><strong>${bar.chord}</strong><small>${bar.function}</small><span class="tension-bar" title="Tension ${Math.round(bar.tension * 100)}% (target ${Math.round(bar.targetTension * 100)}%)"><span class="tension-fill" style="width:${Math.round(bar.tension * 100)}%"></span><span class="tension-target" style="left:${Math.round(bar.targetTension * 100)}%"></span></span></button>`
-    ).join('');
+    chords.innerHTML = phrase.bars.map((bar, i) => {
+      const stepTag = bar.emotion
+        ? `<span class="bar-emotion" style="--bar-emo:${EMOTIONS[bar.emotion].colour}">${emotionLabel(bar.emotion, bar.intensity ?? phrase.options.intensity)}</span>`
+        : '';
+      return `<button class="chord ${bar.function.endsWith('cadence') || bar.function === 'modulation' ? 'cadence' : ''}" data-bar="${i}" tabindex="${i === tabStop ? 0 : -1}" aria-label="Bar ${i + 1}: ${bar.chord}${bar.roman ? ` (${bar.roman})` : ''}, ${bar.function}. Play from here."><span class="chord-top"><span class="number">${String(i + 1).padStart(2, '0')}</span><span class="bar-cue"></span><span class="roman">${bar.roman ?? ''}</span></span><strong>${bar.chord}</strong>${stepTag}<small>${bar.function}</small><span class="tension-bar" title="Tension ${Math.round(bar.tension * 100)}% (target ${Math.round(bar.targetTension * 100)}%)"><span class="tension-fill" style="width:${Math.round(bar.tension * 100)}%"></span><span class="tension-target" style="left:${Math.round(bar.targetTension * 100)}%"></span></span></button>`;
+    }).join('');
     if (focused !== undefined) chords.querySelector<HTMLElement>(`[data-bar="${focused}"]`)?.focus();
     this.syncPerformance();
     const algoDesc = this.scoreValue.options.algorithmMix
@@ -702,6 +734,7 @@ export class AudioBusComposer extends HTMLElement {
         el.classList.toggle('current', current); el.toggleAttribute('aria-current', current);
       });
       this.syncPerformance();
+      this.syncControls();
       this.updateAppliedMessage();
     }
     this.frame = requestAnimationFrame(this.drawFrame);

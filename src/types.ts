@@ -103,6 +103,10 @@ export interface BarPlan {
   tension: number;
   /** Tension the emotion and energy asked for. */
   targetTension: number;
+  /** Sounding emotion of this bar when stepping along a Plutchik follower path. */
+  emotion?: EmotionFamily;
+  /** Sounding intensity of this bar when stepping along a Plutchik follower path. */
+  intensity?: number;
 }
 
 export interface Phrase {

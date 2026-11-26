@@ -342,3 +342,17 @@ test('tuning, groove, dynamics, genre mixing and algorithm combination work in t
   await expect(page).toHaveURL(/mixAlgo=life/);
   expect(errors).toEqual([]);
 });
+
+test('Plutchik follower creates a bar for each step to the next emotion and highlights the wheel path', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/');
+  const composer = page.locator('audiobus-composer');
+  // Starting at Joy, click Sadness (opposite side of Plutchik wheel: Trust -> Fear -> Surprise -> Sadness).
+  await composer.locator('path[data-selection="sadness:sadness"]').click();
+  await expect(composer.locator('#emotion-label')).toHaveText('Sadness');
+  const barEmotions = await composer.locator('.chord .bar-emotion').allTextContents();
+  expect(barEmotions.slice(0, 4)).toEqual(['Trust', 'Fear', 'Surprise', 'Sadness']);
+  // Intermediate petals along the path are highlighted on the Plutchik SVG.
+  await expect(composer.locator('path.path-step')).toHaveCount(3);
+  expect(errors).toEqual([]);
+});

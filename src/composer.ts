@@ -2,10 +2,11 @@ import { ALGORITHMS, ALGORITHM_COMBINERS, FAMILIES, GENRES, GENRE_MIX_MODES, GRO
 import { clamp, degreePitch, EMOTIONS, mod, NOTE_NAMES, random, resolveMode, SCALES, transformMotif, voiceLead, type EmotionProfile, type MotifTransform } from './theory.js';
 import { combineMaterial, elaborate, material, type ElaborationOp, type Material } from './engines.js';
 import { applyGrooveFeel, GENRE_PROFILES, mixGenres, type GenreProfile, type SectionRole } from './genres.js';
-import { CLOSED_CADENCES, planHarmony, realiseChord, type ChordStep, type RealisedChord } from './harmony.js';
+import { CLOSED_CADENCES, planHarmony, PROGRESSIONS, realiseChord, type ChordStep, type RealisedChord } from './harmony.js';
 import { addAccompaniment, addBassLine, addPercussion, byEnergy, compVoicing, fold, nearestWithPc, patternBass, patternComp, patternDrums, shapeDrumKit, shapePattern, type Add, type Grid } from './parts.js';
 import { combineTension, harmonicTension, melodicTension, targetTension } from './tension.js';
 import { tuningCentsOffset } from './tuning.js';
+import type { EmotionStep } from './emotion-follower.js';
 import { GENERATOR_VERSION } from './version.js';
 
 export const DEFAULT_OPTIONS: Readonly<ComposerOptions> = Object.freeze({
@@ -145,6 +146,10 @@ export interface PhraseContext {
   cueFromBar?: number;
   /** Energy before a crescendo lifted options.energy, so the swell ramps smoothly from it. */
   cueStartEnergy?: number;
+  /** Step-by-step Plutchik emotion path (one bar per step) from an EmotionFollower. */
+  emotionPath?: readonly EmotionStep[];
+  /** 0-based bar index where `emotionPath` starts (default 0). */
+  emotionFromBar?: number;
 }
 export interface PhraseKey { root: number; mode: ResolvedMode }
 
@@ -190,6 +195,8 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
   const dynamics = options.dynamics ?? 0;
   const groove = options.groove;
   const tuning = options.tuning;
+  const emotionPath = context.emotionPath?.length ? context.emotionPath : undefined;
+  const emotionFromBar = clamp(Math.floor(context.emotionFromBar ?? 0), 0, 7);
   const section = genre.form[index % genre.form.length];
   const cycleStart = index - (index % genre.form.length);
   const final = !!context.final;
@@ -293,26 +300,47 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
 
     const beat = start + bar * 4;
     const resolving = cue === 'resolve' && bar === lastBar;
-    const step = resolving ? { degree: 0, melody: 0 } : steps[bar];
+    // Resolve per-bar emotion/intensity/mode when an EmotionFollower path is active (1 bar per Plutchik step).
+    const pathOffset = emotionPath ? bar - emotionFromBar : -1;
+    const pathStep = emotionPath && pathOffset >= 0
+      ? emotionPath[Math.min(pathOffset, emotionPath.length - 1)]
+      : undefined;
+    const barEmotion = pathStep ? pathStep.emotion : options.emotion;
+    const barIntensity = pathStep ? pathStep.intensity : options.intensity;
+    const barProfile = pathStep ? EMOTIONS[barEmotion] : profile;
+    const barMode = pathStep && options.mode === 'auto'
+      ? resolveMode(barProfile.mode, barIntensity, genre.modes)
+      : mode;
+
+    const rawStep = resolving ? { degree: 0, melody: 0 } : steps[bar];
+    const step = !resolving && pathStep && !pathStep.arrival && genre.harmony === 'emotion' && bar !== lastBar
+      ? { degree: PROGRESSIONS[barEmotion][0][bar] }
+      : rawStep;
     const cadential = resolving || (bar === lastBar && cadence !== 'open');
-    const ext = extensionFor(genre, options.intensity, step, bar, cadential);
-    const chord = realiseChord(step, root, mode, ext);
-    const next = realiseChord(steps[bar + 1] ?? { degree: 0 }, root, mode, 0);
+    const ext = extensionFor(genre, barIntensity, step, bar, cadential);
+    const chord = realiseChord(step, root, barMode, ext);
+    const nextBarStep = emotionPath && pathOffset + 1 >= 0
+      ? emotionPath[Math.min(pathOffset + 1, emotionPath.length - 1)]
+      : undefined;
+    const nextBarMode = nextBarStep && options.mode === 'auto'
+      ? resolveMode(EMOTIONS[nextBarStep.emotion].mode, nextBarStep.intensity, genre.modes)
+      : barMode;
+    const next = realiseChord(steps[bar + 1] ?? { degree: 0 }, root, nextBarMode, 0);
     const voicing = voiceLead(chord.pitches, previousVoicing);
     previousVoicing = voicing;
-    const baseTarget = targetTension(options.emotion, options.intensity, barEnergy, bar);
+    const baseTarget = targetTension(barEmotion, barIntensity, barEnergy, bar);
     const target = tensionDelta ? clamp(baseTarget + tensionDelta, 0, 1) : baseTarget;
     const harmonic = harmonicTension(step, ext, cadential);
 
     const patternSeed = `${options.seed}:dyn:${index}`;
-    if (genre.bass === 'pop') addBassLine(add, chord, next, beat, bar, cadential, barEnergy, swing, profile.groove);
+    if (genre.bass === 'pop') addBassLine(add, chord, next, beat, bar, cadential, barEnergy, swing, barProfile.groove);
     else {
       const rawBass = byEnergy(genre.bass, barEnergy);
       const shapedBass = groove || dynamics > 0 ? shapePattern(rawBass, groove, dynamics, bar, patternSeed, 'bass') : rawBass;
       patternBass(add, shapedBass, chord, next, beat, grid, barEnergy, cadential);
     }
 
-    if (genre.comp === 'pop') addAccompaniment(add, voicing, beat, cadential, barEnergy, swing, profile.groove);
+    if (genre.comp === 'pop') addAccompaniment(add, voicing, beat, cadential, barEnergy, swing, barProfile.groove);
     else if (genre.hold && !cadential && bar > 0 && stepKey(step) === heldKey && held.length) {
       for (const e of held) e.duration = Math.min(e.duration + 4 + (bar === lastBar ? overhang : 0), start + phraseLength + overhang - e.start);
     } else {
@@ -327,25 +355,26 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
     let melodyTension = 0, hasMelody = false;
     if (currentParts.includes('melody') && (cadential || !genre.melody.rest?.includes(bar))) {
       const materialIndex = section.role === 'return' ? cycleStart : index;
+      const barCenter = pathStep ? clamp(72 + barProfile.registerOffset + genre.melody.register + (roleIndex === 2 ? 3 : 0), 62, 82) : center;
       let best: { notes: MelodyNote[]; last: number; score: number; tension: number } | undefined;
       for (let k = 0; k < (cadential ? 1 : 4); k++) {
         const proposalEnergy = clamp(barEnergy * genre.melody.density + (k === 1 ? .2 : k === 2 ? -.2 : 0), 0, 1);
-        const propOpts = { ...options, energy: proposalEnergy };
-        const propCtx = { chordDegree: step.degree, sectionIndex: roleIndex, mode, variant: k === 3 ? 1 : 0 };
+        const propOpts = { ...options, emotion: barEmotion, intensity: barIntensity, energy: proposalEnergy };
+        const propCtx = { chordDegree: step.degree, sectionIndex: roleIndex, mode: barMode, variant: k === 3 ? 1 : 0 };
         let proposal = options.algorithmMix
           ? combineMaterial(propOpts, materialIndex, bar, motif, options.algorithmMix, propCtx)
           : material(propOpts, materialIndex, bar, motif, propCtx);
         // A return restates the opening bars of each half literally, so the theme is recognised, and varies the rest.
         if (section.role === 'return' && index !== cycleStart && bar % 4 >= 2) {
           const rng = random(`${options.seed}:elaborate:${index}:${bar}`);
-          proposal = elaborate(proposal, ELABORATIONS[options.emotion][rng() < .65 ? 0 : 1], step.degree, rng);
+          proposal = elaborate(proposal, ELABORATIONS[barEmotion][rng() < .65 ? 0 : 1], step.degree, rng);
         }
         const arc = phraseArcVelocity(bar) * (1 + dynamics * .85);
         const realised = realiseMelody(proposal, {
-          step, chord, root, mode, profile, genre, intensity: options.intensity, energy: barEnergy, previous: previousPitch,
-          center, cadential, swing, velocityKey: `${options.seed}:vel:${index}:${bar}`, arc,
+          step, chord, root, mode: barMode, profile: barProfile, genre, intensity: barIntensity, energy: barEnergy, previous: previousPitch,
+          center: barCenter, cadential, swing, velocityKey: `${options.seed}:vel:${index}:${bar}`, arc,
         });
-        const tension = melodicTension(realised.notes.map(n => n.pitch), chord.pcs, center);
+        const tension = melodicTension(realised.notes.map(n => n.pitch), chord.pcs, barCenter);
         const score = Math.abs(combineTension(harmonic, tension, realised.notes.length > 0) - target) + k * .015;
         if (!best || score < best.score) best = { ...realised, score, tension };
       }
@@ -355,7 +384,7 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
     }
 
     if (genre.drums === 'pop') {
-      addPercussion(add, beat, bar, cadential, barEnergy, swing, profile.groove);
+      addPercussion(add, beat, bar, cadential, barEnergy, swing, barProfile.groove);
       if ((cue === 'drop' || cue === 'key-change') && bar === 0 && barEnergy >= .18) {
         add('percussion', 49, beat, .3, clamp(.55 + barEnergy * .25, .05, 1), 'Crash marks the performance transition');
       }
@@ -381,6 +410,7 @@ export function composePhrase(input: Partial<ComposerOptions> = {}, index = 0, s
       function: bar === lastBar ? (cue === 'resolve' ? 'cadence' : cadence === 'modulating' ? 'modulation' : cadence === 'half' ? 'half cadence' : cadence === 'deceptive' ? 'deceptive cadence' : cadence === 'open' ? 'continuation' : 'cadence')
         : bar === 3 && mod(step.degree, 7) === 4 && !step.shift ? 'half cadence' : bar < 4 ? 'presentation' : 'continuation',
       tension: combineTension(harmonic, melodyTension, hasMelody), targetTension: target,
+      ...(pathStep ? { emotion: barEmotion, intensity: barIntensity } : {}),
     });
   }
 

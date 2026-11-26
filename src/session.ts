@@ -1,4 +1,5 @@
 import { composePhrase, normalizeOptions, phraseKey, type PhraseKey } from './composer.js';
+import { EmotionFollower, plutchikPath, type EmotionPoint, type EmotionStep } from './emotion-follower.js';
 import { GENRE_PROFILES } from './genres.js';
 import { clamp, mod } from './theory.js';
 import { Transport, type TransportOptions } from './transport.js';
@@ -60,11 +61,14 @@ export class ComposerSession {
   private activeCueValue?: PerformanceCue;
   private activeCueFromBar?: number;
   private activeCueStartEnergy?: number;
+  private emotionFollower: EmotionFollower;
+  private activeEmotionPath: EmotionStep[] = [];
   private readonly clock: () => number;
   private readonly transport: Transport;
   private record: PerformanceRecord = { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, phrases: [], dispatches: [], truncated: false };
   constructor(options: Partial<ComposerOptions>, output: MidiOutputAdapter, private hooks: SessionHooks = {}, transportOptions: Pick<TransportOptions, 'now' | 'maxGapMs' | 'clock' | 'lookaheadMs'> = {}) {
     this.target = normalizeOptions(options); this.appliedValue = normalizeOptions(this.target);
+    this.emotionFollower = new EmotionFollower({ emotion: this.appliedValue.emotion, intensity: this.appliedValue.intensity });
     this.clock = transportOptions.now ?? (() => performance.now());
     this.transport = new Transport(output, {
       ...transportOptions,
@@ -88,6 +92,21 @@ export class ComposerSession {
   get options(): ComposerOptions { return normalizeOptions(this.target); }
   get queuedCue(): PerformanceCue | undefined { return this.queuedCueValue ?? this.launchCue; }
   get activeCue(): PerformanceCue | undefined { return this.activeCueValue; }
+  /** Sounding emotion of the current bar (or settled emotion when stopped). */
+  get currentEmotion(): EmotionPoint {
+    if (this.running && this.phrase) {
+      const barIdx = clamp(Math.floor(this.beat / 4), 0, Math.max(0, this.phrase.bars.length - 1));
+      const bar = this.phrase.bars[barIdx];
+      if (bar?.emotion !== undefined) return { emotion: bar.emotion, intensity: bar.intensity ?? this.appliedValue.intensity };
+    }
+    return { emotion: this.appliedValue.emotion, intensity: this.appliedValue.intensity };
+  }
+  /** Active Plutchik transition steps playing in the current phrase (one bar per step). */
+  get emotionPath(): readonly EmotionStep[] { return this.activeEmotionPath.map(s => ({ ...s })); }
+  /** Upcoming Plutchik path from the current sounding emotion to the selected target emotion. */
+  get plannedEmotionPath(): readonly EmotionStep[] {
+    return plutchikPath(this.currentEmotion, { emotion: this.target.emotion, intensity: this.target.intensity });
+  }
   get nextBarTarget(): NextBarTarget {
     if (!this.running || !this.phrase) return { bar: 0, nextPhrase: false, beatsUntil: 0 };
     const len = this.cutAtBeat ?? this.phrase.length;
@@ -117,6 +136,8 @@ export class ComposerSession {
     const initialCue = this.running ? undefined : this.queuedCueValue;
     this.stop(); this.index = 0; this.finishing = false; this.programKey = '';
     this.queuedCueValue = initialCue;
+    this.emotionFollower.reset({ emotion: this.target.emotion, intensity: this.target.intensity });
+    this.activeEmotionPath = [];
     this.record = { schemaVersion: 1, generatorVersion: GENERATOR_VERSION, phrases: [], dispatches: [], truncated: false };
     this.begin(false);
   }
@@ -162,6 +183,16 @@ export class ComposerSession {
       this.target = normalizeOptions({ ...this.target, energy: clamp(Math.max(cueStartEnergy + .3, .8), 0, 1) });
     }
     this.appliedValue = normalizeOptions(this.target);
+    if (chain) {
+      const targetPoint: EmotionPoint = { emotion: this.appliedValue.emotion, intensity: this.appliedValue.intensity };
+      const cur = this.emotionFollower.current;
+      if (targetPoint.emotion !== cur.emotion || Math.abs(targetPoint.intensity - cur.intensity) > 1e-6) {
+        this.emotionFollower.guideTo(targetPoint);
+      }
+      this.activeEmotionPath = this.emotionFollower.transitioning ? this.emotionFollower.takeForBars(8) : [];
+    } else {
+      this.activeEmotionPath = [];
+    }
     if (cue === 'bridge' || cue === 'drop') {
       const wantRole = cue === 'bridge' ? 'contrast' : 'return';
       const form = GENRE_PROFILES[this.appliedValue.genre].form;
@@ -176,6 +207,7 @@ export class ComposerSession {
     const context = {
       final: this.phraseFinal,
       next: this.phraseNext,
+      ...(this.activeEmotionPath.length ? { emotionPath: this.activeEmotionPath } : {}),
       ...(cue ? { cue, cueFromBar: 0, ...(cueStartEnergy !== undefined ? { cueStartEnergy } : {}) } : {}),
     };
     const phrase = composePhrase(this.appliedValue, this.index, 0, context);
@@ -270,6 +302,7 @@ export class ComposerSession {
     const revised = composePhrase(options, this.index, 0, {
       final: this.phraseFinal,
       next: this.phraseNext,
+      ...(this.activeEmotionPath.length ? { emotionPath: this.activeEmotionPath } : {}),
       ...(activeInPhrase ? {
         cue: activeInPhrase,
         cueFromBar: this.activeCueFromBar ?? bar,
